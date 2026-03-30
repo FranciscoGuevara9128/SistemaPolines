@@ -1,0 +1,59 @@
+import { Outlet, Link, useLocation } from 'react-router-dom';
+
+const MainLayout = () => {
+  const location = useLocation();
+
+  const navigation = [
+    { name: 'Dashboard', href: '/' },
+    { name: 'Entregas', href: '/entregas' },
+    { name: 'Transporte', href: '/transporte' },
+    { name: 'Liberaciones', href: '/liberaciones' },
+    { name: 'Facturación', href: '/facturacion' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <nav className="bg-blue-900 border-b border-blue-800 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <span className="text-white font-bold text-xl tracking-wider">📦 PolinesControl</span>
+              </div>
+              <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
+                {navigation.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`${
+                        isActive
+                          ? 'border-blue-300 text-white'
+                          : 'border-transparent text-gray-300 hover:text-white hover:border-gray-300'
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200`}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
+          <Outlet />
+        </div>
+      </main>
+      
+      <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
+        &copy; {new Date().getFullYear()} Sistema de Control de Polines. Todos los derechos reservados.
+      </footer>
+    </div>
+  );
+};
+
+export default MainLayout;
