@@ -8,6 +8,11 @@ const MESES = [
   { val: 10, nombre: 'Octubre' }, { val: 11, nombre: 'Noviembre' }, { val: 12, nombre: 'Diciembre' }
 ];
 
+const TRAMO_STYLE = {
+  ALMACENAMIENTO: { badge: 'bg-blue-100 text-blue-800', icon: '🏭' },
+  TRANSPORTE:     { badge: 'bg-amber-100 text-amber-800', icon: '🚚' }
+};
+
 const Facturacion = () => {
   const [formData, setFormData] = useState({
     cliente_directo_id: '',
@@ -16,18 +21,15 @@ const Facturacion = () => {
   });
   const [factura, setFactura] = useState(null);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
-  const [referencias, setReferencias] = useState({
-    clientes_directos: []
-  });
+  const [referencias, setReferencias] = useState({ clientes_directos: [] });
+  const [mostrarDetalles, setMostrarDetalles] = useState(false);
 
   useEffect(() => {
     const fetchReferencias = async () => {
       try {
         const { data } = await getReferencias();
         if (data.success) {
-          setReferencias({
-            clientes_directos: data.data.clientes_directos || []
-          });
+          setReferencias({ clientes_directos: data.data.clientes_directos || [] });
         }
       } catch (err) {
         console.error('Error cargando referencias:', err);
@@ -44,6 +46,7 @@ const Facturacion = () => {
     e.preventDefault();
     setMensaje({ tipo: '', texto: '' });
     setFactura(null);
+    setMostrarDetalles(false);
     try {
       const resp = await generarFacturacion({
         cliente_directo_id: formData.cliente_directo_id,
@@ -57,10 +60,14 @@ const Facturacion = () => {
     }
   };
 
+  const mesNombre = MESES.find(m => m.val === parseInt(formData.mes, 10))?.nombre || '';
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Generar Facturación Mensual</h1>
-      <p className="text-gray-600 text-sm">Calcula los montos a cobrar por almacenamiento y transporte en un mes específico.</p>
+      <p className="text-gray-600 text-sm">
+        Calcula los montos por tramo: días en almacenamiento y días en transporte, con tarifas independientes.
+      </p>
 
       <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg border border-gray-100 flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
@@ -74,13 +81,11 @@ const Facturacion = () => {
           >
             <option value="">-- Seleccione un Cliente --</option>
             {referencias.clientes_directos.map(cliente => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre}
-              </option>
+              <option key={cliente.id} value={cliente.id}>{cliente.nombre}</option>
             ))}
           </select>
         </div>
-        
+
         <div className="w-40">
           <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
           <select
@@ -90,9 +95,7 @@ const Facturacion = () => {
             value={formData.mes}
             onChange={handleChange}
           >
-            {MESES.map(m => (
-              <option key={m.val} value={m.val}>{m.nombre}</option>
-            ))}
+            {MESES.map(m => <option key={m.val} value={m.val}>{m.nombre}</option>)}
           </select>
         </div>
 
@@ -108,7 +111,7 @@ const Facturacion = () => {
             onChange={handleChange}
           />
         </div>
-        
+
         <button
           type="submit"
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 h-10"
@@ -124,26 +127,101 @@ const Facturacion = () => {
       )}
 
       {factura && (
-        <div className="mt-8 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          {/* Cabecera */}
           <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Resumen de Factura</h3>
-            <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-              ID: {factura.id}
+            <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-semibold font-mono">
+              {factura.id?.slice(0, 8)}...
             </span>
           </div>
-          <div className="p-6 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Periodo Facturado</p>
-              <p className="text-base font-medium">{factura.mes} / {factura.anio}</p>
+
+          <div className="p-6 space-y-6">
+            {/* Período */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Período Facturado</p>
+                <p className="font-medium">{mesNombre} {factura.anio}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Fecha de Generación</p>
+                <p className="font-medium">{new Date(factura.fecha_generacion).toLocaleDateString('es-NI')}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Fecha de Generación</p>
-              <p className="text-base font-medium">{new Date(factura.fecha_generacion).toLocaleDateString()}</p>
+
+            {/* Subtotales por tramo */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <span>🏭</span>
+                  <span className="text-sm font-medium text-blue-800">Almacenamiento</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-900">
+                  ${parseFloat(factura.total_almacenamiento || 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <span>🚚</span>
+                  <span className="text-sm font-medium text-amber-800">Transporte</span>
+                </div>
+                <p className="text-2xl font-bold text-amber-900">
+                  ${parseFloat(factura.total_transporte || 0).toFixed(2)}
+                </p>
+              </div>
             </div>
-            <div className="col-span-2 pt-4 border-t mt-2">
-              <p className="text-sm text-gray-500 mb-1">Total a Pagar</p>
-              <p className="text-3xl font-bold text-gray-900">${parseFloat(factura.total).toFixed(2)}</p>
+
+            {/* Total */}
+            <div className="pt-4 border-t flex justify-between items-center">
+              <p className="text-gray-600 font-medium">Total a Pagar</p>
+              <p className="text-3xl font-extrabold text-gray-900">${parseFloat(factura.total).toFixed(2)}</p>
             </div>
+
+            {/* Detalles por tramo */}
+            {factura.detalles && factura.detalles.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setMostrarDetalles(v => !v)}
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  {mostrarDetalles ? '▲ Ocultar' : '▼ Ver'} desglose por tramo ({factura.detalles.length} líneas)
+                </button>
+
+                {mostrarDetalles && (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-3 py-2 font-medium text-gray-600">Tramo</th>
+                          <th className="px-3 py-2 font-medium text-gray-600 text-right">Cantidad</th>
+                          <th className="px-3 py-2 font-medium text-gray-600 text-right">Días</th>
+                          <th className="px-3 py-2 font-medium text-gray-600 text-right">Tarifa/día</th>
+                          <th className="px-3 py-2 font-medium text-gray-600 text-right">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {factura.detalles.map((d, i) => {
+                          const style = TRAMO_STYLE[d.estado_tramo] || { badge: 'bg-gray-100 text-gray-700', icon: '📦' };
+                          return (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${style.badge}`}>
+                                  {style.icon} {d.estado_tramo}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right">{d.cantidad}</td>
+                              <td className="px-3 py-2 text-right">{d.dias}</td>
+                              <td className="px-3 py-2 text-right">${parseFloat(d.tarifa).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-medium">${parseFloat(d.subtotal).toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
