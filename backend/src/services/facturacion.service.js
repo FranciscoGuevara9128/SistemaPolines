@@ -1,16 +1,23 @@
 import { supabase } from '../config/supabase.js';
 
 // ─────────────────────────────────────────────────────────────
-// GENERAR FACTURACIÓN POR TRAMOS
+// GENERAR FACTURACIÓN POR TRAMOS CON SUB-PERÍODOS
 //
-// FIX: estado_tramo se omite del INSERT a detalle_facturacion
-// (la columna puede no estar en el schema cache de Supabase).
-// El campo se incluye en el array `detalles` del response
-// para que el frontend lo muestre sin necesitar la BD.
+// Corrección del doble conteo en envíos parciales:
+//
+// Cuando un hijo (TRANSPORTE) nace dentro del mes, el tramo
+// ALMACENAMIENTO del raíz se divide en sub-períodos:
+//
+//   [inicio raíz → salida hijo 1]  cantidad = original
+//   [salida hijo 1 → salida hijo 2] cantidad = original - hijo1.cantidad
+//   [salida hijo 2 → fin de mes]   cantidad = original - hijo1 - hijo2
+//
+// Los hijos que nacieron ANTES del mes solo reducen la cantidad
+// inicial del raíz (sin generar segmento nuevo).
 // ─────────────────────────────────────────────────────────────
 export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
   const fechaInicioMes = new Date(anio, mes - 1, 1);
-  const fechaFinMes = new Date(anio, mes, 0, 23, 59, 59);
+  const fechaFinMes    = new Date(anio, mes, 0, 23, 59, 59);
 
   // 1. Todos los movimientos del cliente con actividad en el período
   const { data: todosMovimientos, error: movsErr } = await supabase
@@ -37,56 +44,119 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
     return t ? parseFloat(t.precio_por_dia) : 0;
   };
 
-  // 3. Separar raíces (sin padre) e hijos (con movimiento_origen_id)
-  const movimientosRaiz = movsMes.filter(m => !m.movimiento_origen_id);
-  const movimientosHijo = movsMes.filter(m => !!m.movimiento_origen_id);
+  // 3. Separar raíces e hijos
+  const movimientosRaiz = todosMovimientos.filter(m => !m.movimiento_origen_id);
+  const movimientosHijo = todosMovimientos.filter(m => !!m.movimiento_origen_id);
 
   let total_almacenamiento = 0;
-  let total_transporte = 0;
-  const detalles = []; // detalles calculados (con estado_tramo)
+  let total_transporte     = 0;
+  const detalles = [];
 
   for (const raiz of movimientosRaiz) {
-    // — Tramo ALMACENAMIENTO del raíz —
-    const inicioAlm = new Date(Math.max(new Date(raiz.fecha_inicio).getTime(), fechaInicioMes.getTime()));
-    const finAlm = raiz.fecha_fin
+    // Límites del raíz dentro del mes a facturar
+    const raizInicioMes = new Date(
+      Math.max(new Date(raiz.fecha_inicio).getTime(), fechaInicioMes.getTime())
+    );
+    const raizFinMes = raiz.fecha_fin
       ? new Date(Math.min(new Date(raiz.fecha_fin).getTime(), fechaFinMes.getTime()))
       : new Date(fechaFinMes);
 
-    if (finAlm >= inicioAlm) {
-      const diasAlm = calcularDias(inicioAlm, finAlm);
-      const tarifaAlm = getTarifa('ALMACENAMIENTO');
-      const subtotalAlm = diasAlm * tarifaAlm * raiz.cantidad;
+    // Saltear raíces sin actividad en el mes
+    if (raizFinMes < raizInicioMes) continue;
+
+    // Hijos de este lote ordenados cronológicamente
+    const hijos = movimientosHijo
+      .filter(h => h.movimiento_origen_id === raiz.id)
+      .sort((a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio));
+
+    // ── TRAMO ALMACENAMIENTO con sub-períodos ────────────────
+    //
+    // Partimos del total original del lote raíz.
+    // Los hijos que nacieron ANTES del mes ya habían reducido
+    // la cantidad almacenada → los descontamos de entrada.
+    // Los hijos que nacen DENTRO del mes parten el tramo.
+    // ─────────────────────────────────────────────────────────
+    let cantidadEnAlm = raiz.cantidad;
+
+    // Descontar hijos anteriores al mes
+    for (const hijo of hijos) {
+      if (new Date(hijo.fecha_inicio) < fechaInicioMes) {
+        cantidadEnAlm -= hijo.cantidad;
+      }
+    }
+
+    // Hijos que nacen durante el mes (generan corte de período)
+    const hijosEnMes = hijos.filter(h => {
+      const hi = new Date(h.fecha_inicio);
+      return hi >= fechaInicioMes && hi <= raizFinMes;
+    });
+
+    let segmentoInicio = raizInicioMes;
+
+    for (const hijo of hijosEnMes) {
+      const hijoInicio  = new Date(hijo.fecha_inicio);
+      const segmentoFin = hijoInicio; // corte cuando sale el hijo
+
+      if (segmentoFin > segmentoInicio && cantidadEnAlm > 0) {
+        const diasAlm    = calcularDias(segmentoInicio, segmentoFin);
+        const tarifaAlm  = getTarifa('ALMACENAMIENTO');
+        const subtotalAlm = diasAlm * tarifaAlm * cantidadEnAlm;
+        total_almacenamiento += subtotalAlm;
+        detalles.push({
+          movimiento_id: raiz.id,
+          estado_tramo:  'ALMACENAMIENTO',
+          periodo:       `${fmt(segmentoInicio)} → ${fmt(segmentoFin)}`,
+          dias:          diasAlm,
+          cantidad:      cantidadEnAlm,
+          tarifa:        tarifaAlm,
+          subtotal:      subtotalAlm
+        });
+      }
+
+      // El hijo se va: reducir cantidad en almacenamiento
+      cantidadEnAlm -= hijo.cantidad;
+      segmentoInicio = hijoInicio;
+    }
+
+    // Último sub-período ALMACENAMIENTO (desde el último corte hasta fin de mes)
+    if (raizFinMes > segmentoInicio && cantidadEnAlm > 0) {
+      const diasAlm    = calcularDias(segmentoInicio, raizFinMes);
+      const tarifaAlm  = getTarifa('ALMACENAMIENTO');
+      const subtotalAlm = diasAlm * tarifaAlm * cantidadEnAlm;
       total_almacenamiento += subtotalAlm;
       detalles.push({
         movimiento_id: raiz.id,
-        estado_tramo: 'ALMACENAMIENTO',   // <-- solo en el response, NO en la BD
-        dias: diasAlm,
-        cantidad: raiz.cantidad,
-        tarifa: tarifaAlm,
-        subtotal: subtotalAlm
+        estado_tramo:  'ALMACENAMIENTO',
+        periodo:       `${fmt(segmentoInicio)} → ${fmt(raizFinMes)}`,
+        dias:          diasAlm,
+        cantidad:      cantidadEnAlm,
+        tarifa:        tarifaAlm,
+        subtotal:      subtotalAlm
       });
     }
 
-    // — Tramo TRANSPORTE por cada hijo vinculado —
-    const hijosDeLote = movimientosHijo.filter(h => h.movimiento_origen_id === raiz.id);
-    for (const hijo of hijosDeLote) {
-      const inicioTrans = new Date(Math.max(new Date(hijo.fecha_inicio).getTime(), fechaInicioMes.getTime()));
+    // ── TRAMO TRANSPORTE por cada hijo ───────────────────────
+    for (const hijo of hijos) {
+      const inicioTrans = new Date(
+        Math.max(new Date(hijo.fecha_inicio).getTime(), fechaInicioMes.getTime())
+      );
       const finTrans = hijo.fecha_fin
         ? new Date(Math.min(new Date(hijo.fecha_fin).getTime(), fechaFinMes.getTime()))
         : new Date(fechaFinMes);
 
       if (finTrans >= inicioTrans) {
-        const diasTrans = calcularDias(inicioTrans, finTrans);
-        const tarifaTrans = getTarifa('TRANSPORTE');
+        const diasTrans    = calcularDias(inicioTrans, finTrans);
+        const tarifaTrans  = getTarifa('TRANSPORTE');
         const subtotalTrans = diasTrans * tarifaTrans * hijo.cantidad;
-        total_transporte += subtotalTrans;
+        total_transporte   += subtotalTrans;
         detalles.push({
           movimiento_id: hijo.id,
-          estado_tramo: 'TRANSPORTE',     // <-- solo en el response, NO en la BD
-          dias: diasTrans,
-          cantidad: hijo.cantidad,
-          tarifa: tarifaTrans,
-          subtotal: subtotalTrans
+          estado_tramo:  'TRANSPORTE',
+          periodo:       `${fmt(inicioTrans)} → ${fmt(finTrans)}`,
+          dias:          diasTrans,
+          cantidad:      hijo.cantidad,
+          tarifa:        tarifaTrans,
+          subtotal:      subtotalTrans
         });
       }
     }
@@ -109,10 +179,9 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
 
   if (facErr) throw new Error(facErr.message);
 
-  // 5. Insertar detalles — SIN estado_tramo para evitar error de schema cache
-  //    El campo estado_tramo se devuelve en el response pero no se persiste.
+  // 5. Insertar detalles — sin estado_tramo ni periodo (campos calculados)
   if (detalles.length > 0) {
-    const detallesToInsert = detalles.map(({ estado_tramo, ...d }) => ({
+    const detallesToInsert = detalles.map(({ estado_tramo, periodo, ...d }) => ({
       facturacion_id: factura.id,
       ...d
     }));
@@ -122,13 +191,14 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
     if (detErr) throw new Error(detErr.message);
   }
 
-  // 6. Devolver factura + detalles completos (incluyendo estado_tramo)
   return { ...factura, detalles };
 };
 
-// ── Utilidad ──────────────────────────────────────────────────
+// ── Utilidades ────────────────────────────────────────────────
 const calcularDias = (inicio, fin) => {
   const diffMs = Math.abs(fin.getTime() - inicio.getTime());
-  const dias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const dias   = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   return dias === 0 ? 1 : dias;
 };
+
+const fmt = (d) => d.toISOString().slice(0, 10);

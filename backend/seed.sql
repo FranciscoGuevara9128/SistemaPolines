@@ -113,7 +113,7 @@ INSERT INTO movimiento_polines
   (id, cliente_directo_id, tipo_polin_id, color_polin_id,
    cantidad, cantidad_restante, tipo_movimiento, estado_uso, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000001',
+  'e0000000-0000-0000-0000-000000000001',
   'c0000000-0000-0000-0000-000000000001',
   'a0000000-0000-0000-0000-000000000001',
   'b0000000-0000-0000-0000-000000000001',
@@ -128,14 +128,14 @@ INSERT INTO movimiento_polines
    cantidad, cantidad_restante, tipo_movimiento, estado_uso,
    movimiento_origen_id, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000002',
+  'e0000000-0000-0000-0000-000000000002',
   'c0000000-0000-0000-0000-000000000001',
   'f0000000-0000-0000-0000-000000000001',   -- La Colonia
   'a0000000-0000-0000-0000-000000000001',
   'b0000000-0000-0000-0000-000000000001',
   100, 100,                      -- 100 polines en transporte
   'ENTREGA', 'TRANSPORTE',
-  'm0000000-0000-0000-0000-000000000001',   -- trazabilidad: hijo de mov-A
+  'e0000000-0000-0000-0000-000000000001',   -- trazabilidad: hijo de mov-A
   NOW() - INTERVAL '12 days'
 );
 
@@ -152,7 +152,7 @@ INSERT INTO movimiento_polines
    cantidad, cantidad_restante, tipo_movimiento, estado_uso,
    fecha_inicio, fecha_fin)
 VALUES (
-  'm0000000-0000-0000-0000-000000000003',
+  'e0000000-0000-0000-0000-000000000003',
   'c0000000-0000-0000-0000-000000000001',
   'a0000000-0000-0000-0000-000000000001',
   'b0000000-0000-0000-0000-000000000001',
@@ -168,14 +168,14 @@ INSERT INTO movimiento_polines
    cantidad, cantidad_restante, tipo_movimiento, estado_uso,
    movimiento_origen_id, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000004',
+  'e0000000-0000-0000-0000-000000000004',
   'c0000000-0000-0000-0000-000000000001',
   'f0000000-0000-0000-0000-000000000002',   -- Walmart
   'a0000000-0000-0000-0000-000000000001',
   'b0000000-0000-0000-0000-000000000001',
   150, 150,
   'ENTREGA', 'TRANSPORTE',
-  'm0000000-0000-0000-0000-000000000003',   -- hijo de mov-B
+  'e0000000-0000-0000-0000-000000000003',   -- hijo de mov-B
   NOW() - INTERVAL '20 days'
 );
 
@@ -190,7 +190,7 @@ INSERT INTO movimiento_polines
   (id, cliente_directo_id, tipo_polin_id, color_polin_id,
    cantidad, cantidad_restante, tipo_movimiento, estado_uso, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000005',
+  'e0000000-0000-0000-0000-000000000005',
   'c0000000-0000-0000-0000-000000000002',
   'a0000000-0000-0000-0000-000000000002',
   'b0000000-0000-0000-0000-000000000003',
@@ -209,7 +209,7 @@ INSERT INTO movimiento_polines
   (id, cliente_directo_id, tipo_polin_id, color_polin_id,
    cantidad, cantidad_restante, tipo_movimiento, estado_uso, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000006',
+  'e0000000-0000-0000-0000-000000000006',
   'c0000000-0000-0000-0000-000000000003',
   'a0000000-0000-0000-0000-000000000003',
   'b0000000-0000-0000-0000-000000000002',
@@ -230,7 +230,7 @@ INSERT INTO movimiento_polines
   (id, cliente_directo_id, tipo_polin_id, color_polin_id,
    cantidad, cantidad_restante, tipo_movimiento, estado_uso, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000007',
+  'e0000000-0000-0000-0000-000000000007',
   'c0000000-0000-0000-0000-000000000003',
   'a0000000-0000-0000-0000-000000000003',
   'b0000000-0000-0000-0000-000000000002',
@@ -245,14 +245,14 @@ INSERT INTO movimiento_polines
    cantidad, cantidad_restante, tipo_movimiento, estado_uso,
    movimiento_origen_id, fecha_inicio)
 VALUES (
-  'm0000000-0000-0000-0000-000000000008',
+  'e0000000-0000-0000-0000-000000000008',
   'c0000000-0000-0000-0000-000000000003',
   'f0000000-0000-0000-0000-000000000005',   -- MaxiPali Las Mercedes
   'a0000000-0000-0000-0000-000000000003',
   'b0000000-0000-0000-0000-000000000002',
   60, 60,
   'ENTREGA', 'TRANSPORTE',
-  'm0000000-0000-0000-0000-000000000007',   -- hijo de mov-G
+  'e0000000-0000-0000-0000-000000000007',   -- hijo de mov-G
   NOW() - INTERVAL '8 days'
 );
 
