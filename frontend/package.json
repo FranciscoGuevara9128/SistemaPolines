@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
+    "start": "npm run preview",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "node ./node_modules/vite/bin/vite.js preview --port ${PORT:-8080} --host 0.0.0.0"
+    "preview": "node ./node_modules/vite/bin/vite.js preview --port $PORT --host 0.0.0.0"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.3",
