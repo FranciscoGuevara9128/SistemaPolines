@@ -1,15 +1,20 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const MainLayout = () => {
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navigation = [
-    { name: 'Dashboard', href: '/' },
-    { name: 'Entregas', href: '/entregas' },
-    { name: 'Transporte', href: '/transporte' },
-    { name: 'Liberaciones', href: '/liberaciones' },
-    { name: 'Facturación', href: '/facturacion' },
+    { name: 'Dashboard', href: '/', roles: ['ADMIN', 'CLIENTE_DIRECTO', 'CLIENTE_FINAL'] },
+    { name: 'Entregas', href: '/entregas', roles: ['ADMIN'] },
+    { name: 'Transporte', href: '/transporte', roles: ['ADMIN', 'CLIENTE_DIRECTO'] },
+    { name: 'Liberaciones', href: '/liberaciones', roles: ['ADMIN', 'CLIENTE_DIRECTO', 'CLIENTE_FINAL'] },
+    { name: 'Facturación', href: '/facturacion', roles: ['ADMIN'] },
   ];
+
+  // Filter navigation by role
+  const filteredNav = navigation.filter(item => user && item.roles.includes(user.role));
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -21,7 +26,7 @@ const MainLayout = () => {
                 <span className="text-white font-bold text-xl tracking-wider">📦 PolinesControl</span>
               </div>
               <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
-                {navigation.map((item) => {
+                {filteredNav.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
                     <Link
@@ -38,6 +43,22 @@ const MainLayout = () => {
                   );
                 })}
               </div>
+            </div>
+            
+            {/* User Info & Logout */}
+            <div className="flex items-center space-x-4">
+              {user && (
+                <div className="text-sm text-gray-300 text-right hidden sm:block">
+                  <p className="font-semibold text-white">{user.entityName}</p>
+                  <p className="text-xs text-blue-300">{user.role}</p>
+                </div>
+              )}
+              <button
+                onClick={logout}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-900 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Salir
+              </button>
             </div>
           </div>
         </div>

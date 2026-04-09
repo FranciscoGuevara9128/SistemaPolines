@@ -1,83 +1,154 @@
 import { useState, useEffect } from 'react';
-import { getPolinesCliente, getReferencias } from '../services/api';
+import { getReferencias, getPolinesCliente } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
-  const [clienteId, setClienteId] = useState('');
-  const [estado, setEstado] = useState(null);
+  const { user } = useAuth();
+  const [estadisticas, setEstadisticas] = useState(null);
+  const [movimientos, setMovimientos] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [clientesDirectos, setClientesDirectos] = useState([]);
 
   useEffect(() => {
-    const fetchClientes = async () => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const { data } = await getReferencias();
-        if (data.success && data.data.clientes_directos) {
-          setClientesDirectos(data.data.clientes_directos);
+        if (user?.role === 'CLIENTE_FINAL') {
+          // Cliente final ve su historial (obtenido de las referencias que ya vienen filtradas por su entityId en el backend)
+          const { data } = await getReferencias();
+          if (data.success) {
+            setMovimientos(data.data.movimientos_activos || []);
+          }
+        } else if (user?.role === 'CLIENTE_DIRECTO') {
+          // Cliente directo carga automáticamente sus sumatorias desde la API
+          const response = await getPolinesCliente(user.entityId);
+          setEstadisticas(response.data.data);
+        } else {
+          // Admin ve todos
+          // Consultamos todos los clientes directos y sus respectivas sumatorias (o sumatoria global de movimientos)
+          // Para esta demostración, mostramos los lotes globales si el backend lo proveyera o un resumen global.
+          // Usaremos las referencias para calcular sumatorias para el admin.
+          const { data } = await getReferencias();
+          if (data.success) {
+            const movs = data.data.movimientos_activos || [];
+            let totalAlm = 0;
+            let totalTransp = 0;
+            movs.forEach(m => {
+              if (m.estado_uso === 'ALMACENAMIENTO') totalAlm += m.cantidad_restante;
+              if (m.estado_uso === 'TRANSPORTE') totalTransp += m.cantidad_restante;
+            });
+            setEstadisticas({ almacenamiento: totalAlm, transporte: totalTransp });
+            setMovimientos(movs);
+          }
         }
       } catch (err) {
-        console.error('Error cargando clientes para el dashboard', err);
+        setError('Error al obtener datos del dashboard.');
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchClientes();
-  }, []);
+    if (user) fetchData();
+  }, [user]);
 
-  const handleBuscar = async (e) => {
-    e.preventDefault();
-    if (!clienteId) return;
-    try {
-      const response = await getPolinesCliente(clienteId);
-      setEstado(response.data.data);
-      setError('');
-    } catch (err) {
-      setError('Error al obtener el estado. Verifica el ID del cliente.');
-      setEstado(null);
-    }
-  };
+  if (loading) return <div>Cargando dashboard...</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Estado de Polines por Cliente</h1>
-      
-      <form onSubmit={handleBuscar} className="flex gap-4 items-end">
-        <div className="flex-1 max-w-sm">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cliente Directo</label>
-          <select
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-            required
-          >
-            <option value="">-- Selecciona el Cliente Directo --</option>
-            {clientesDirectos.map(cliente => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition duration-150"
-        >
-          Consultar
-        </button>
-      </form>
+      <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">
+        {user?.role === 'ADMIN' ? 'Dashboard Global' : 
+         user?.role === 'CLIENTE_DIRECTO' ? 'Mi Estado de Polines' : 'Historial de Lotes Recibidos'}
+      </h1>
 
-      {error && <div className="text-red-500 text-sm">{error}</div>}
-
-      {estado && (
+      {/* KPI Cards para Admin y Cliente Directo */}
+      {(user?.role === 'ADMIN' || user?.role === 'CLIENTE_DIRECTO') && estadisticas && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <div className="bg-white border rounded-lg shadow-sm p-6 flex flex-col items-center justify-center transform transition hover:scale-105">
+          <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Almacenamiento</h3>
-            <p className="text-4xl font-extrabold text-blue-600 mt-2">{estado.almacenamiento}</p>
-            <div className="mt-4 text-xs text-center text-gray-400">Polines actualmente en bodegas del cliente</div>
+            <p className="text-4xl font-extrabold text-blue-600 mt-2">{estadisticas.almacenamiento}</p>
+            <div className="mt-4 text-xs text-center text-gray-400">Polines actualmente en fábricas</div>
           </div>
           
-          <div className="bg-white border rounded-lg shadow-sm p-6 flex flex-col items-center justify-center transform transition hover:scale-105">
+          <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Transporte</h3>
-            <p className="text-4xl font-extrabold text-green-600 mt-2">{estado.transporte}</p>
-            <div className="mt-4 text-xs text-center text-gray-400">Polines enviados al cliente final</div>
+            <p className="text-4xl font-extrabold text-amber-600 mt-2">{estadisticas.transporte}</p>
+            <div className="mt-4 text-xs text-center text-gray-400">Polines enviados a clientes finales</div>
           </div>
+        </div>
+      )}
+
+      {/* Tabla global para Admin */}
+      {user?.role === 'ADMIN' && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-700 mb-4">Inventario Global de Clientes</h2>
+          <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <table className="min-w-full divide-y divide-gray-300">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Estado</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Origen / Destino</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Polín</th>
+                  <th className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Cantidad Restante</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {movimientos.map((m) => (
+                  <tr key={m.id}>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                      <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${m.estado_uso === 'ALMACENAMIENTO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {m.estado_uso}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      {m.cliente_directo?.nombre} {m.cliente_final ? ` → ${m.cliente_final.nombre}` : ''}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{m.tipo_polin?.nombre} ({m.color_polin?.nombre})</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-right text-gray-900 font-bold">{m.cantidad_restante}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Historial para Cliente Final */}
+      {user?.role === 'CLIENTE_FINAL' && (
+        <div className="mt-4">
+          {movimientos.length === 0 ? (
+            <p className="text-gray-500 py-4">No hay lotes de polines registrados actualmente en su instalación.</p>
+          ) : (
+            <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Fecha Envío</th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Procedencia (Fábrica)</th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Tipo de Polín</th>
+                    <th className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Pendientes a Devolver</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {movimientos.map((m) => (
+                    <tr key={m.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500">
+                        {new Date(m.fecha_inicio).toLocaleDateString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">{m.cliente_directo?.nombre || 'Desconocida'}</td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {m.tipo_polin?.nombre} <span className="text-xs ml-1 text-gray-400">({m.color_polin?.nombre})</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-right font-bold text-amber-600">
+                        {m.cantidad_restante}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

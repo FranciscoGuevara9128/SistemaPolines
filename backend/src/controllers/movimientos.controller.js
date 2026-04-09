@@ -13,6 +13,14 @@ export const registrarEntrega = async (req, res) => {
 export const enviarTransporte = async (req, res) => {
   try {
     const { cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada } = req.body;
+    const userRole = req.headers['x-user-role'];
+    const entityId = req.headers['x-user-entity-id'];
+
+    // Seguridad: Si es cliente directo, solo puede enviar transporte de su propia fábrica
+    if (userRole === 'CLIENTE_DIRECTO' && cliente_directo_id !== entityId) {
+      throw new Error('No tiene permisos para enviar inventario de otro cliente.');
+    }
+
     const result = await MovimientosService.enviarTransporte({
       cliente_directo_id,
       tipo_polin_id,
@@ -29,6 +37,20 @@ export const enviarTransporte = async (req, res) => {
 export const liberarPolines = async (req, res) => {
   try {
     const { estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar } = req.body;
+    const userRole = req.headers['x-user-role'];
+    const entityId = req.headers['x-user-entity-id'];
+
+    // Seguridad: Cliente directo solo puede liberar su almacenamiento. Cliente final solo su transporte.
+    if (userRole === 'CLIENTE_DIRECTO') {
+      if (estado_uso !== 'ALMACENAMIENTO' || cliente_dueño_id !== entityId) {
+         throw new Error('No tiene permisos para liberar este inventario.');
+      }
+    } else if (userRole === 'CLIENTE_FINAL') {
+      if (estado_uso !== 'TRANSPORTE' || cliente_dueño_id !== entityId) {
+         throw new Error('No tiene permisos para liberar este inventario.');
+      }
+    }
+
     const result = await MovimientosService.liberarPolines({
       estado_uso,
       cliente_dueño_id,
