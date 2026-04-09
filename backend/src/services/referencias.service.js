@@ -64,6 +64,10 @@ export const obtenerReferencias = async () => {
       cantidad: mov.cantidad,
       cantidad_restante: restante,
       es_hijo: !!mov.movimiento_origen_id,
+      cliente_directo: mov.cliente_directo,
+      tipo_polin: mov.tipo_polin,
+      color_polin: mov.color_polin,
+      cliente_final: mov.cliente_final,
       label: `[${mov.estado_uso}] ${restante} ${tipoName} ${colorName} | ${clienteName}${destinoName}`
     };
   });

@@ -3,7 +3,7 @@ import { enviarTransporte, getReferencias } from '../services/api';
 
 const Transporte = () => {
   const [formData, setFormData] = useState({
-    id_movimiento: '',
+    grupo_origen: '',
     cliente_final_id: '',
     cantidad_enviada: ''
   });
@@ -14,24 +14,51 @@ const Transporte = () => {
     clientes_finales: []
   });
 
-  useEffect(() => {
-    const fetchReferencias = async () => {
-      try {
-        const { data } = await getReferencias();
-        if (data.success) {
-          // Solo movimientos en ALMACENAMIENTO con cantidad_restante > 0 y que sean raíz (no hijos)
-          const disponibles = data.data.movimientos_activos.filter(
-            m => m.estado_uso === 'ALMACENAMIENTO' && m.cantidad_restante > 0 && !m.es_hijo
-          );
-          setReferencias({
-            movimientos_activos: disponibles,
-            clientes_finales: data.data.clientes_finales || []
-          });
-        }
-      } catch (err) {
-        console.error('Error cargando referencias', err);
+  const fetchReferencias = async () => {
+    try {
+      const { data } = await getReferencias();
+      if (data.success) {
+        // Solo movimientos en ALMACENAMIENTO con cantidad_restante > 0 y que sean raíz (no hijos)
+        const disponibles = data.data.movimientos_activos.filter(
+          m => m.estado_uso === 'ALMACENAMIENTO' && m.cantidad_restante > 0 && !m.es_hijo
+        );
+
+        // Agrupar inventario por cliente, tipo de polín y color
+        const agrupados = disponibles.reduce((acc, mov) => {
+          if (!mov.cliente_directo || !mov.tipo_polin || !mov.color_polin) return acc;
+          const key = `${mov.cliente_directo.id}|${mov.tipo_polin.id}|${mov.color_polin.id}`;
+          if (!acc[key]) {
+            acc[key] = {
+              id: key,
+              cliente_directo_id: mov.cliente_directo.id,
+              tipo_polin_id: mov.tipo_polin.id,
+              color_polin_id: mov.color_polin.id,
+              cliente_nombre: mov.cliente_directo.nombre,
+              tipo_nombre: mov.tipo_polin.nombre,
+              color_nombre: mov.color_polin.nombre,
+              cantidad_restante: 0
+            };
+          }
+          acc[key].cantidad_restante += mov.cantidad_restante;
+          return acc;
+        }, {});
+
+        const lotes_agrupados = Object.values(agrupados).map(g => ({
+          ...g,
+          label: `Cliente: ${g.cliente_nombre} | Polín: ${g.tipo_nombre} (${g.color_nombre})`
+        }));
+
+        setReferencias({
+          movimientos_activos: lotes_agrupados,
+          clientes_finales: data.data.clientes_finales || []
+        });
       }
-    };
+    } catch (err) {
+      console.error('Error cargando referencias', err);
+    }
+  };
+
+  useEffect(() => {
     fetchReferencias();
   }, []);
 
@@ -41,7 +68,7 @@ const Transporte = () => {
     setMovSeleccionado(mov || null);
     setFormData(prev => ({
       ...prev,
-      id_movimiento: id,
+      grupo_origen: id,
       cantidad_enviada: mov ? mov.cantidad_restante : ''
     }));
   };
@@ -55,28 +82,25 @@ const Transporte = () => {
     setMensaje({ tipo: '', texto: '' });
     try {
       const result = await enviarTransporte({
-        id_movimiento: formData.id_movimiento,
+        cliente_directo_id: movSeleccionado.cliente_directo_id,
+        tipo_polin_id: movSeleccionado.tipo_polin_id,
+        color_polin_id: movSeleccionado.color_polin_id,
         cliente_final_id: formData.cliente_final_id,
         cantidad_enviada: parseInt(formData.cantidad_enviada, 10)
       });
-      const { restante_en_origen, origen_cerrado } = result.data.data;
+      const { restante_en_origen } = result.data.data;
+      const origen_cerrado = restante_en_origen === 0;
+
       const msg = origen_cerrado
-        ? 'Lote completo enviado a transporte. El origen fue cerrado.'
-        : `Envío parcial registrado. Quedan ${restante_en_origen} unidades en almacenamiento.`;
+        ? 'Inventario completo enviado a transporte.'
+        : `Envío parcial registrado. Quedan ${restante_en_origen} unidades en almacenamiento para este grupo.`;
+
       setMensaje({ tipo: 'success', texto: msg });
-      setFormData({ id_movimiento: '', cliente_final_id: '', cantidad_enviada: '' });
+      setFormData({ grupo_origen: '', cliente_final_id: '', cantidad_enviada: '' });
       setMovSeleccionado(null);
-      // Actualizar lista local
-      setReferencias(prev => ({
-        ...prev,
-        movimientos_activos: origen_cerrado
-          ? prev.movimientos_activos.filter(m => m.id !== formData.id_movimiento)
-          : prev.movimientos_activos.map(m =>
-              m.id === formData.id_movimiento
-                ? { ...m, cantidad_restante: restante_en_origen, label: m.label.replace(/^\[ALMACENAMIENTO\] \d+/, `[ALMACENAMIENTO] ${restante_en_origen}`) }
-                : m
-            )
-      }));
+
+      // Actualizar referencias completas desde el backend
+      fetchReferencias();
     } catch (err) {
       setMensaje({ tipo: 'error', texto: 'Error al enviar a transporte. ' + (err.response?.data?.error || err.message) });
     }
@@ -84,9 +108,9 @@ const Transporte = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Enviar a Transporte</h1>
+      <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Enviar a Cliente Final</h1>
       <p className="text-gray-600 text-sm">
-        Envía polines en almacenamiento hacia un cliente final. Puedes enviar una cantidad parcial del lote.
+        Envía polines directamente desde el almacén de un cliente hacia un cliente final. Puedes enviar una cantidad combinada usando el método LIFO.
       </p>
 
       {mensaje.texto && (
@@ -99,23 +123,23 @@ const Transporte = () => {
         {/* Movimiento origen */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Lote en Almacenamiento a Enviar
+            Inventario en Almacenamiento a Enviar
           </label>
           <select
-            name="id_movimiento"
+            name="grupo_origen"
             required
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
-            value={formData.id_movimiento}
+            value={formData.grupo_origen}
             onChange={handleMovimientoChange}
           >
-            <option value="">-- Seleccione un Lote Disponible --</option>
+            <option value="">-- Seleccione el Inventario Disponible --</option>
             {referencias.movimientos_activos.map(mov => (
               <option key={mov.id} value={mov.id}>{mov.label}</option>
             ))}
           </select>
           {movSeleccionado && (
             <p className="mt-1 text-xs text-blue-600 font-medium">
-              Disponible para envío: <strong>{movSeleccionado.cantidad_restante}</strong> unidades
+              Disponible para envío total: <strong>{movSeleccionado.cantidad_restante}</strong> unidades
             </p>
           )}
         </div>
@@ -134,7 +158,7 @@ const Transporte = () => {
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
             value={formData.cantidad_enviada}
             onChange={handleChange}
-            placeholder={movSeleccionado ? `Máx. ${movSeleccionado.cantidad_restante}` : 'Seleccione un lote primero'}
+            placeholder={movSeleccionado ? `Máx. ${movSeleccionado.cantidad_restante}` : 'Seleccione un origen primero'}
           />
           {movSeleccionado && parseInt(formData.cantidad_enviada, 10) < movSeleccionado.cantidad_restante && formData.cantidad_enviada !== '' && (
             <p className="mt-1 text-xs text-amber-600">
@@ -167,7 +191,7 @@ const Transporte = () => {
             type="submit"
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
           >
-            Enviar a Transporte
+            Enviar a Transporte / Cliente Final
           </button>
         </div>
       </form>

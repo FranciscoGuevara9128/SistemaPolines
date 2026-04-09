@@ -49,65 +49,81 @@ export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, colo
 // movimiento hijo, diferenciado por estado_uso='TRANSPORTE' y
 // movimiento_origen_id seteado.
 // ─────────────────────────────────────────────────────────────
-export const enviarTransporte = async ({ id_movimiento, cliente_final_id, cantidad_enviada }) => {
+export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada }) => {
   if (!cliente_final_id) throw new Error('cliente_final_id es obligatorio.');
+  if (!cliente_directo_id || !tipo_polin_id || !color_polin_id) throw new Error('Debe especificar el origen completo.');
   if (!cantidad_enviada || cantidad_enviada <= 0) throw new Error('cantidad_enviada debe ser mayor a 0.');
 
-  // 1. Obtener movimiento origen (debe estar activo y en ALMACENAMIENTO)
-  const { data: movOrigen, error: errGet } = await supabase
+  // Obtener todos los lotes activos de ALMACENAMIENTO para este subgrupo, orden LIFO (fecha descendente)
+  const { data: lotes, error: errGet } = await supabase
     .from('movimiento_polines')
     .select('*')
-    .eq('id', id_movimiento)
+    .eq('cliente_directo_id', cliente_directo_id)
+    .eq('tipo_polin_id', tipo_polin_id)
+    .eq('color_polin_id', color_polin_id)
+    .eq('estado_uso', 'ALMACENAMIENTO')
     .is('fecha_fin', null)
-    .single();
+    .order('fecha_inicio', { ascending: false });
 
-  if (errGet) throw new Error('Movimiento no encontrado o ya cerrado.');
-  if (movOrigen.estado_uso !== 'ALMACENAMIENTO') throw new Error('Solo se puede enviar a transporte desde ALMACENAMIENTO.');
+  if (errGet) throw new Error(errGet.message);
 
-  const disponible = movOrigen.cantidad_restante ?? movOrigen.cantidad;
-  if (cantidad_enviada > disponible) {
-    throw new Error(`Cantidad a enviar (${cantidad_enviada}) supera la disponible (${disponible}).`);
+  let cantidad_restante_por_enviar = parseInt(cantidad_enviada, 10);
+  const lotes_disponibles = lotes || [];
+
+  const totalDisponible = lotes_disponibles.reduce((sum, lote) => sum + (lote.cantidad_restante ?? lote.cantidad), 0);
+  if (cantidad_restante_por_enviar > totalDisponible) {
+    throw new Error(`Cantidad a enviar (${cantidad_restante_por_enviar}) supera la disponible en almacén (${totalDisponible}).`);
   }
 
   const ahora = new Date().toISOString();
-  const nuevaRestante = disponible - cantidad_enviada;
-  const updatePayload = { cantidad_restante: nuevaRestante };
-  if (nuevaRestante === 0) updatePayload.fecha_fin = ahora;
+  const movimientos_hijos = [];
 
-  // 2. Descontar del origen
-  const { error: errUpd } = await supabase
-    .from('movimiento_polines')
-    .update(updatePayload)
-    .eq('id', id_movimiento);
+  for (const lote of lotes_disponibles) {
+    if (cantidad_restante_por_enviar <= 0) break;
 
-  if (errUpd) throw new Error(errUpd.message);
+    const disponible = lote.cantidad_restante ?? lote.cantidad;
+    const aDescontar = Math.min(disponible, cantidad_restante_por_enviar);
+    const nuevaRestante = disponible - aDescontar;
 
-  // 3. Crear movimiento hijo
-  //    tipo_movimiento='ENTREGA' para respetar chk_padre_envio
-  //    estado_uso='TRANSPORTE' + movimiento_origen_id para trazabilidad
-  const { data: movHijo, error: errIns } = await supabase
-    .from('movimiento_polines')
-    .insert([{
-      cliente_directo_id: movOrigen.cliente_directo_id,
-      cliente_final_id,
-      tipo_polin_id: movOrigen.tipo_polin_id,
-      color_polin_id: movOrigen.color_polin_id,
-      cantidad: cantidad_enviada,
-      cantidad_restante: cantidad_enviada,
-      tipo_movimiento: 'ENTREGA',      // <-- FIX: evita chk_padre_envio
-      estado_uso: 'TRANSPORTE',
-      movimiento_origen_id: id_movimiento,
-      fecha_inicio: ahora
-    }])
-    .select()
-    .single();
+    // Actualizar lote origen
+    const updatePayload = { cantidad_restante: nuevaRestante };
+    if (nuevaRestante === 0) updatePayload.fecha_fin = ahora;
 
-  if (errIns) throw new Error(errIns.message);
+    const { error: errUpd } = await supabase
+      .from('movimiento_polines')
+      .update(updatePayload)
+      .eq('id', lote.id);
+
+    if (errUpd) throw new Error(errUpd.message);
+
+    // Crear movimiento hijo
+    const { data: movHijo, error: errIns } = await supabase
+      .from('movimiento_polines')
+      .insert([{
+        cliente_directo_id,
+        cliente_final_id,
+        tipo_polin_id,
+        color_polin_id,
+        cantidad: aDescontar,
+        cantidad_restante: aDescontar,
+        tipo_movimiento: 'ENTREGA',      // <-- FIX: evita chk_padre_envio
+        estado_uso: 'TRANSPORTE',
+        movimiento_origen_id: lote.id,
+        fecha_inicio: ahora
+      }])
+      .select()
+      .single();
+
+    if (errIns) throw new Error(errIns.message);
+
+    movimientos_hijos.push(movHijo);
+    cantidad_restante_por_enviar -= aDescontar;
+  }
 
   return {
-    movimiento_hijo: movHijo,
-    restante_en_origen: nuevaRestante,
-    origen_cerrado: nuevaRestante === 0
+    movimientos_hijos,
+    trazabilidad: `Distribuidos en ${movimientos_hijos.length} lotes de origen.`,
+    restante_en_origen: totalDisponible - cantidad_enviada
   };
 };
 

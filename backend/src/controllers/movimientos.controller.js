@@ -12,9 +12,11 @@ export const registrarEntrega = async (req, res) => {
 
 export const enviarTransporte = async (req, res) => {
   try {
-    const { id_movimiento, cliente_final_id, cantidad_enviada } = req.body;
+    const { cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada } = req.body;
     const result = await MovimientosService.enviarTransporte({
-      id_movimiento,
+      cliente_directo_id,
+      tipo_polin_id,
+      color_polin_id,
       cliente_final_id,
       cantidad_enviada: parseInt(cantidad_enviada, 10)
     });
