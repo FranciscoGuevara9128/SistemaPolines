@@ -136,62 +136,87 @@ export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, colo
 // - Si cantidad_liberar >= cantidad_restante (o no se especifica):
 //   liberación total, se cierra el movimiento con fecha_fin.
 // ─────────────────────────────────────────────────────────────
-export const liberarPolines = async ({ id_movimiento, cantidad_liberar }) => {
-  const { data: mov, error: errGet } = await supabase
+export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar }) => {
+  if (!estado_uso || !cliente_dueño_id || !tipo_polin_id || !color_polin_id) throw new Error('Debe especificar el grupo completo para liberar.');
+  if (!cantidad_liberar || cantidad_liberar <= 0) throw new Error('La cantidad a liberar debe ser mayor a 0.');
+
+  let query = supabase
     .from('movimiento_polines')
     .select('*')
-    .eq('id', id_movimiento)
+    .eq('estado_uso', estado_uso)
+    .eq('tipo_polin_id', tipo_polin_id)
+    .eq('color_polin_id', color_polin_id)
     .is('fecha_fin', null)
-    .single();
+    .order('fecha_inicio', { ascending: true }); // FIFO: los más viejos primero
 
-  if (errGet) throw new Error('Movimiento no encontrado o ya fue liberado.');
+  if (estado_uso === 'TRANSPORTE') {
+    query = query.eq('cliente_final_id', cliente_dueño_id);
+  } else if (estado_uso === 'ALMACENAMIENTO') {
+    query = query.eq('cliente_directo_id', cliente_dueño_id);
+  } else {
+    throw new Error('Estado de uso no soportado para liberación agrupada.');
+  }
 
-  const disponible = mov.cantidad_restante ?? mov.cantidad;
-  const aLiberar = cantidad_liberar ? parseInt(cantidad_liberar, 10) : disponible;
+  const { data: lotes, error: errGet } = await query;
+  if (errGet) throw new Error(errGet.message);
 
-  if (aLiberar <= 0) throw new Error('La cantidad a liberar debe ser mayor a 0.');
-  if (aLiberar > disponible) {
-    throw new Error(`Cantidad a liberar (${aLiberar}) supera la disponible (${disponible}).`);
+  const lotes_disponibles = lotes || [];
+  const totalDisponible = lotes_disponibles.reduce((sum, lote) => sum + (lote.cantidad_restante ?? lote.cantidad), 0);
+
+  let aLiberarTotal = parseInt(cantidad_liberar, 10);
+  if (aLiberarTotal > totalDisponible) {
+    throw new Error(`Cantidad a liberar (${aLiberarTotal}) supera la disponible (${totalDisponible}).`);
   }
 
   const ahora = new Date().toISOString();
-  const nuevaRestante = disponible - aLiberar;
-  const esTotal = nuevaRestante === 0;
+  let cantidad_liberada_real = 0;
+  let lotes_afectados = 0;
 
-  // 1. Actualizar movimiento
-  const updatePayload = { cantidad_restante: nuevaRestante };
-  if (esTotal) updatePayload.fecha_fin = ahora;
+  for (const lote of lotes_disponibles) {
+    if (aLiberarTotal <= 0) break;
 
-  const { error: errUpd } = await supabase
-    .from('movimiento_polines')
-    .update(updatePayload)
-    .eq('id', id_movimiento);
+    const disponible = lote.cantidad_restante ?? lote.cantidad;
+    const aDescontar = Math.min(disponible, aLiberarTotal);
+    const nuevaRestante = disponible - aDescontar;
+    const esTotal = nuevaRestante === 0;
 
-  if (errUpd) throw new Error(errUpd.message);
+    // 1. Actualizar movimiento
+    const updatePayload = { cantidad_restante: nuevaRestante };
+    if (esTotal) updatePayload.fecha_fin = ahora;
+
+    const { error: errUpd } = await supabase
+      .from('movimiento_polines')
+      .update(updatePayload)
+      .eq('id', lote.id);
+
+    if (errUpd) throw new Error(errUpd.message);
+
+    cantidad_liberada_real += aDescontar;
+    aLiberarTotal -= aDescontar;
+    lotes_afectados++;
+  }
 
   // 2. Devolver cantidad al inventario global
   const { data: inv, error: invGetError } = await supabase
     .from('inventario')
     .select('*')
-    .eq('tipo_polin_id', mov.tipo_polin_id)
-    .eq('color_polin_id', mov.color_polin_id)
+    .eq('tipo_polin_id', tipo_polin_id)
+    .eq('color_polin_id', color_polin_id)
     .single();
 
   if (!invGetError && inv) {
     await supabase
       .from('inventario')
-      .update({ cantidad_disponible: inv.cantidad_disponible + aLiberar })
+      .update({ cantidad_disponible: inv.cantidad_disponible + cantidad_liberada_real })
       .eq('id', inv.id);
   }
 
   return {
     success: true,
-    parcial: !esTotal,
-    cantidad_liberada: aLiberar,
-    cantidad_restante: nuevaRestante,
-    estado_previo: mov.estado_uso,
-    message: esTotal
-      ? `Liberación total completada (${mov.estado_uso}).`
-      : `Liberación parcial: ${aLiberar} liberadas, ${nuevaRestante} permanecen activas.`
+    parcial: totalDisponible > cantidad_liberada_real,
+    cantidad_liberada: cantidad_liberada_real,
+    cantidad_restante: totalDisponible - cantidad_liberada_real,
+    estado_previo: estado_uso,
+    message: `Liberación FIFO completada: ${cantidad_liberada_real} polines devueltos procesando ${lotes_afectados} lotes.`
   };
 };

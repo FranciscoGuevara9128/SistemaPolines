@@ -28,10 +28,12 @@ export const enviarTransporte = async (req, res) => {
 
 export const liberarPolines = async (req, res) => {
   try {
-    // cantidad_liberar es opcional: si se omite, libera el total disponible
-    const { id_movimiento, cantidad_liberar } = req.body;
+    const { estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar } = req.body;
     const result = await MovimientosService.liberarPolines({
-      id_movimiento,
+      estado_uso,
+      cliente_dueño_id,
+      tipo_polin_id,
+      color_polin_id,
       cantidad_liberar: cantidad_liberar ? parseInt(cantidad_liberar, 10) : null
     });
     res.status(200).json({ success: true, data: result });
