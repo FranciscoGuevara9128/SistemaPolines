@@ -50,6 +50,9 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
 
   let total_almacenamiento = 0;
   let total_transporte     = 0;
+  let total_pull_fijo      = 0;
+  let total_costo_entrega  = 0;
+  let total_siniestros     = 0;
   const detalles = [];
 
   for (const raiz of movimientosRaiz) {
@@ -63,6 +66,23 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
 
     // Saltear raíces sin actividad en el mes
     if (raizFinMes < raizInicioMes) continue;
+
+    // Sumar costo de entrega si inició este mes
+    if (new Date(raiz.fecha_inicio) >= fechaInicioMes && new Date(raiz.fecha_inicio) <= fechaFinMes) {
+      if (raiz.costo_entrega && parseFloat(raiz.costo_entrega) > 0) {
+        const costo = parseFloat(raiz.costo_entrega);
+        total_costo_entrega += costo;
+        detalles.push({
+          movimiento_id: raiz.id,
+          estado_tramo:  'COSTO_ENTREGA',
+          periodo:       fmt(new Date(raiz.fecha_inicio)),
+          dias:          1,
+          cantidad:      raiz.cantidad,
+          tarifa:        costo,
+          subtotal:      costo
+        });
+      }
+    }
 
     // Hijos de este lote ordenados cronológicamente
     const hijos = movimientosHijo
@@ -99,12 +119,16 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
 
       if (segmentoFin > segmentoInicio && cantidadEnAlm > 0) {
         const diasAlm    = calcularDias(segmentoInicio, segmentoFin);
-        const tarifaAlm  = getTarifa('ALMACENAMIENTO');
+        const tipoEstado = raiz.estado_uso === 'PULL_FIJO' ? 'PULL_FIJO' : 'ALMACENAMIENTO';
+        const tarifaAlm  = getTarifa(tipoEstado);
         const subtotalAlm = diasAlm * tarifaAlm * cantidadEnAlm;
-        total_almacenamiento += subtotalAlm;
+        
+        if (tipoEstado === 'PULL_FIJO') total_pull_fijo += subtotalAlm;
+        else total_almacenamiento += subtotalAlm;
+        
         detalles.push({
           movimiento_id: raiz.id,
-          estado_tramo:  'ALMACENAMIENTO',
+          estado_tramo:  tipoEstado,
           periodo:       `${fmt(segmentoInicio)} → ${fmt(segmentoFin)}`,
           dias:          diasAlm,
           cantidad:      cantidadEnAlm,
@@ -118,15 +142,19 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
       segmentoInicio = hijoInicio;
     }
 
-    // Último sub-período ALMACENAMIENTO (desde el último corte hasta fin de mes)
+    // Último sub-período ALMACENAMIENTO/PULL_FIJO (desde el último corte hasta fin de mes)
     if (raizFinMes > segmentoInicio && cantidadEnAlm > 0) {
       const diasAlm    = calcularDias(segmentoInicio, raizFinMes);
-      const tarifaAlm  = getTarifa('ALMACENAMIENTO');
+      const tipoEstado = raiz.estado_uso === 'PULL_FIJO' ? 'PULL_FIJO' : 'ALMACENAMIENTO';
+      const tarifaAlm  = getTarifa(tipoEstado);
       const subtotalAlm = diasAlm * tarifaAlm * cantidadEnAlm;
-      total_almacenamiento += subtotalAlm;
+      
+      if (tipoEstado === 'PULL_FIJO') total_pull_fijo += subtotalAlm;
+      else total_almacenamiento += subtotalAlm;
+      
       detalles.push({
         movimiento_id: raiz.id,
-        estado_tramo:  'ALMACENAMIENTO',
+        estado_tramo:  tipoEstado,
         periodo:       `${fmt(segmentoInicio)} → ${fmt(raizFinMes)}`,
         dias:          diasAlm,
         cantidad:      cantidadEnAlm,
@@ -162,16 +190,49 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
     }
   }
 
+  // 3.5. Calcular siniestros del mes
+  const { data: siniestrosData, error: sErr } = await supabase
+    .from('recepcion_polines')
+    .select('*, movimiento_polines!inner(cliente_directo_id)')
+    .eq('estado_recepcion', 'RECIBIDO')
+    .eq('movimiento_polines.cliente_directo_id', cliente_directo_id)
+    .gte('fecha_recepcion', fechaInicioMes.toISOString())
+    .lte('fecha_recepcion', fechaFinMes.toISOString());
+
+  if (!sErr && siniestrosData) {
+    const tarifaSiniestro = getTarifa('SINIESTRO');
+    for (const rec of siniestrosData) {
+      if (rec.cantidad_siniestrados > 0) {
+        const subtotalSin = rec.cantidad_siniestrados * tarifaSiniestro;
+        total_siniestros += subtotalSin;
+        detalles.push({
+          movimiento_id: rec.movimiento_origen_id,
+          estado_tramo:  'SINIESTRO',
+          periodo:       fmt(new Date(rec.fecha_recepcion)),
+          dias:          1,
+          cantidad:      rec.cantidad_siniestrados,
+          tarifa:        tarifaSiniestro,
+          subtotal:      subtotalSin
+        });
+      }
+    }
+  }
+
   // 4. Insertar cabecera de factura
+  // OJO: Hay que actualizar la BDD en la tabla facturacion para soportar esos nuevos totales, 
+  // O podemos agrupar en total.
+  // Como no creamos campos en facturacion, los mapearemos.
+  const totalFactura = total_almacenamiento + total_transporte + total_pull_fijo + total_costo_entrega + total_siniestros;
+  
   const { data: factura, error: facErr } = await supabase
     .from('facturacion')
     .insert([{
       cliente_directo_id,
       mes,
       anio,
-      total_almacenamiento,
+      total_almacenamiento: total_almacenamiento + total_pull_fijo + total_costo_entrega + total_siniestros, // Agrupado para compatibilidad si no existen columnas
       total_transporte,
-      total: total_almacenamiento + total_transporte,
+      total: totalFactura,
       fecha_generacion: new Date().toISOString()
     }])
     .select()

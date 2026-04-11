@@ -9,8 +9,11 @@ const MESES = [
 ];
 
 const TRAMO_STYLE = {
-  ALMACENAMIENTO: { badge: 'bg-blue-100 text-blue-800', icon: '🏭' },
-  TRANSPORTE:     { badge: 'bg-amber-100 text-amber-800', icon: '🚚' }
+  ALMACENAMIENTO: { badge: 'bg-blue-100 text-blue-800', icon: '🏭', label: 'Almacenamiento' },
+  TRANSPORTE:     { badge: 'bg-amber-100 text-amber-800', icon: '🚚', label: 'Transporte' },
+  PULL_FIJO:      { badge: 'bg-indigo-100 text-indigo-800', icon: '📉', label: 'Pull Fijo' },
+  COSTO_ENTREGA:  { badge: 'bg-emerald-100 text-emerald-800', icon: '💵', label: 'Costo Entrega' },
+  SINIESTRO:      { badge: 'bg-red-100 text-red-800', icon: '🔥', label: 'Siniestro' }
 };
 
 const Facturacion = () => {
@@ -149,27 +152,27 @@ const Facturacion = () => {
               </div>
             </div>
 
-            {/* Subtotales por tramo */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <span>🏭</span>
-                  <span className="text-sm font-medium text-blue-800">Almacenamiento</span>
-                </div>
-                <p className="text-2xl font-bold text-blue-900">
-                  ${parseFloat(factura.total_almacenamiento || 0).toFixed(2)}
-                </p>
+            {/* Resumen extraído de detalles si existen */}
+            {factura.detalles && factura.detalles.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.keys(TRAMO_STYLE).map(tramo => {
+                  const subtotal = factura.detalles.filter(d => d.estado_tramo === tramo).reduce((acc, obj) => acc + parseFloat(obj.subtotal), 0);
+                  if (subtotal === 0) return null;
+                  const style = TRAMO_STYLE[tramo];
+                  return (
+                    <div key={tramo} className={`rounded-lg p-3 border ${style.badge.split(' ')[0]} bg-opacity-30 border-opacity-50`}>
+                      <div className="flex items-center gap-2 mb-1">
+                         <span>{style.icon}</span>
+                         <span className={`text-xs font-semibold uppercase ${style.badge.split(' ')[1]}`}>{style.label}</span>
+                      </div>
+                      <p className={`text-xl font-bold ${style.badge.split(' ')[1].replace('-800', '-900')}`}>
+                        ${subtotal.toFixed(2)}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <span>🚚</span>
-                  <span className="text-sm font-medium text-amber-800">Transporte</span>
-                </div>
-                <p className="text-2xl font-bold text-amber-900">
-                  ${parseFloat(factura.total_transporte || 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Total */}
             <div className="pt-4 border-t flex justify-between items-center">

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Entregas from './pages/Entregas';
 import Transporte from './pages/Transporte';
 import Liberaciones from './pages/Liberaciones';
+import Recepcion from './pages/Recepcion';
 import Facturacion from './pages/Facturacion';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -27,6 +28,7 @@ function App() {
           {/* Rutas Solo Admin */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
             <Route path="entregas" element={<Entregas />} />
+            <Route path="recepcion" element={<Recepcion />} />
             <Route path="facturacion" element={<Facturacion />} />
           </Route>
         </Route>

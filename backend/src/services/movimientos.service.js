@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase.js';
 // ─────────────────────────────────────────────────────────────
 // REGISTRAR ENTREGA
 // ─────────────────────────────────────────────────────────────
-export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cantidad }) => {
+export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cantidad, estado_uso = 'ALMACENAMIENTO', costo_entrega = 0 }) => {
   const { data: inv, error: invGetError } = await supabase
     .from('inventario')
     .select('*')
@@ -23,7 +23,8 @@ export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, colo
       cantidad,
       cantidad_restante: cantidad,
       tipo_movimiento: 'ENTREGA',
-      estado_uso: 'ALMACENAMIENTO',
+      estado_uso: estado_uso,
+      costo_entrega: costo_entrega,
       fecha_inicio: new Date().toISOString()
     }])
     .select()
@@ -61,7 +62,7 @@ export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, colo
     .eq('cliente_directo_id', cliente_directo_id)
     .eq('tipo_polin_id', tipo_polin_id)
     .eq('color_polin_id', color_polin_id)
-    .eq('estado_uso', 'ALMACENAMIENTO')
+    .in('estado_uso', ['ALMACENAMIENTO', 'PULL_FIJO'])
     .is('fecha_fin', null)
     .order('fecha_inicio', { ascending: false });
 
@@ -151,7 +152,7 @@ export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin
 
   if (estado_uso === 'TRANSPORTE') {
     query = query.eq('cliente_final_id', cliente_dueño_id);
-  } else if (estado_uso === 'ALMACENAMIENTO') {
+  } else if (estado_uso === 'ALMACENAMIENTO' || estado_uso === 'PULL_FIJO') {
     query = query.eq('cliente_directo_id', cliente_dueño_id);
   } else {
     throw new Error('Estado de uso no soportado para liberación agrupada.');
@@ -191,24 +192,21 @@ export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin
 
     if (errUpd) throw new Error(errUpd.message);
 
+    // 2. Crear registro de recepción pendiente
+    const { error: errRec } = await supabase
+      .from('recepcion_polines')
+      .insert([{
+        movimiento_origen_id: lote.id,
+        cantidad_liberada: aDescontar,
+        estado_recepcion: 'PENDIENTE',
+        fecha_liberacion: ahora
+      }]);
+
+    if (errRec) throw new Error(errRec.message);
+
     cantidad_liberada_real += aDescontar;
     aLiberarTotal -= aDescontar;
     lotes_afectados++;
-  }
-
-  // 2. Devolver cantidad al inventario global
-  const { data: inv, error: invGetError } = await supabase
-    .from('inventario')
-    .select('*')
-    .eq('tipo_polin_id', tipo_polin_id)
-    .eq('color_polin_id', color_polin_id)
-    .single();
-
-  if (!invGetError && inv) {
-    await supabase
-      .from('inventario')
-      .update({ cantidad_disponible: inv.cantidad_disponible + cantidad_liberada_real })
-      .eq('id', inv.id);
   }
 
   return {
@@ -217,6 +215,79 @@ export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin
     cantidad_liberada: cantidad_liberada_real,
     cantidad_restante: totalDisponible - cantidad_liberada_real,
     estado_previo: estado_uso,
-    message: `Liberación FIFO completada: ${cantidad_liberada_real} polines devueltos procesando ${lotes_afectados} lotes.`
+    message: `Liberación FIFO completada: ${cantidad_liberada_real} polines pasan a PENDIENTES de recepción procesando ${lotes_afectados} lotes.`
   };
+};
+
+// ─────────────────────────────────────────────────────────────
+// RECEPCIONES - GET Y PROCESAR
+// ─────────────────────────────────────────────────────────────
+
+export const getRecepcionesPendientes = async () => {
+  const { data, error } = await supabase
+    .from('recepcion_polines')
+    .select(`
+      *,
+      movimiento_polines (*, 
+        cliente_directo (id, nombre), 
+        cliente_final (id, nombre),
+        tipo_polin (id, nombre),
+        color_polin (id, nombre)
+      )
+    `)
+    .eq('estado_recepcion', 'PENDIENTE')
+    .order('fecha_liberacion', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+export const procesarRecepcion = async ({ recepcion_id, cantidad_buenos, cantidad_siniestrados }) => {
+  if (!recepcion_id) throw new Error('Debe especificar IDs de recepcion.');
+
+  const { data: rec, error: getErr } = await supabase
+    .from('recepcion_polines')
+    .select(`*, movimiento_polines(tipo_polin_id, color_polin_id)`)
+    .eq('id', recepcion_id)
+    .single();
+
+  if (getErr) throw new Error(getErr.message);
+  if (rec.estado_recepcion !== 'PENDIENTE') throw new Error('Esta recepción ya fue procesada.');
+
+  const totalProcesado = parseInt(cantidad_buenos, 10) + parseInt(cantidad_siniestrados, 10);
+  if (totalProcesado !== rec.cantidad_liberada) {
+    throw new Error(`La suma de buenos (${cantidad_buenos}) y siniestrados (${cantidad_siniestrados}) debe ser exactamente ${rec.cantidad_liberada}.`);
+  }
+
+  const { error: updErr } = await supabase
+    .from('recepcion_polines')
+    .update({
+      cantidad_buenos,
+      cantidad_siniestrados,
+      estado_recepcion: 'RECIBIDO',
+      fecha_recepcion: new Date().toISOString()
+    })
+    .eq('id', recepcion_id);
+
+  if (updErr) throw new Error(updErr.message);
+
+  if (cantidad_buenos > 0) {
+    const { tipo_polin_id, color_polin_id } = rec.movimiento_polines;
+    
+    const { data: inv } = await supabase
+      .from('inventario')
+      .select('*')
+      .eq('tipo_polin_id', tipo_polin_id)
+      .eq('color_polin_id', color_polin_id)
+      .single();
+
+    if (inv) {
+      await supabase
+        .from('inventario')
+        .update({ cantidad_disponible: inv.cantidad_disponible + parseInt(cantidad_buenos, 10) })
+        .eq('id', inv.id);
+    }
+  }
+
+  return { success: true, message: 'Recepción procesada.' };
 };

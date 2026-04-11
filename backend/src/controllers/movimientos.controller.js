@@ -63,3 +63,22 @@ export const liberarPolines = async (req, res) => {
     res.status(400).json({ success: false, error: error.message });
   }
 };
+
+export const getRecepcionesPendientes = async (req, res) => {
+  try {
+    const result = await MovimientosService.getRecepcionesPendientes();
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+export const procesarRecepcion = async (req, res) => {
+  try {
+    const data = req.body;
+    const result = await MovimientosService.procesarRecepcion(data);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};

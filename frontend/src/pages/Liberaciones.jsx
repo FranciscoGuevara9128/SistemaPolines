@@ -3,7 +3,8 @@ import { liberarPolines, getReferencias } from '../services/api';
 
 const BADGE = {
   ALMACENAMIENTO: 'bg-blue-100 text-blue-800',
-  TRANSPORTE:     'bg-amber-100 text-amber-800'
+  TRANSPORTE:     'bg-amber-100 text-amber-800',
+  PULL_FIJO:      'bg-indigo-100 text-indigo-800'
 };
 
 const Liberaciones = () => {
@@ -16,8 +17,16 @@ const Liberaciones = () => {
     try {
       const { data } = await getReferencias();
       if (data.success) {
+        let currentRole = '';
+        try {
+          const userStr = localStorage.getItem('polines_user');
+          if (userStr) currentRole = JSON.parse(userStr).role;
+        } catch (e) {}
+
         const agrupados = data.data.movimientos_activos.reduce((acc, mov) => {
           if (!mov.tipo_polin || !mov.color_polin) return acc;
+          if (currentRole === 'CLIENTE_DIRECTO' && mov.estado_uso === 'TRANSPORTE') return acc; // NO permite liberar envíos a clientes finales
+          
           const dueño_id = mov.estado_uso === 'TRANSPORTE' ? mov.cliente_final?.id : mov.cliente_directo?.id;
           const dueño_nombre = mov.estado_uso === 'TRANSPORTE' ? mov.cliente_final?.nombre : mov.cliente_directo?.nombre;
           if (!dueño_id) return acc; // Skip if no owner context
@@ -103,7 +112,7 @@ const Liberaciones = () => {
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Liberación de Polines</h1>
       <p className="text-gray-600 text-sm">
-        Libera polines en modalidad FIFO, combinando tu inventario automático.
+        Libera polines. Estos pasarán al estado "Pendiente de Recepción" hasta que el administrador consolide las cantidades reales retornadas y siniestradas.
       </p>
 
       {mensaje.texto && (
@@ -166,7 +175,7 @@ const Liberaciones = () => {
           )}
           {movSeleccionado && formData.cantidad_liberar !== '' && parseInt(formData.cantidad_liberar, 10) === movSeleccionado.cantidad_restante && (
             <p className="mt-1 text-xs text-emerald-600">
-              Liberación total — todo el inventario de este grupo retornará a fábrica.
+              Liberación total — todo el inventario de este grupo pasará a pendiente de recepción.
             </p>
           )}
         </div>
@@ -176,7 +185,7 @@ const Liberaciones = () => {
             type="submit"
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
           >
-            Confirmar Liberación y Retorno a Inventario
+            Confirmar Liberación
           </button>
         </div>
       </form>

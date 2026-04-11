@@ -6,7 +6,9 @@ const Entregas = () => {
     cliente_directo_id: '',
     tipo_polin_id: '',
     color_polin_id: '',
-    cantidad: ''
+    cantidad: '',
+    estado_uso: 'ALMACENAMIENTO',
+    costo_entrega: 0
   });
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [referencias, setReferencias] = useState({
@@ -38,10 +40,11 @@ const Entregas = () => {
     try {
       await registrarEntrega({
         ...formData,
-        cantidad: parseInt(formData.cantidad, 10)
+        cantidad: parseInt(formData.cantidad, 10),
+        costo_entrega: formData.costo_entrega ? parseFloat(formData.costo_entrega) : 0
       });
-      setMensaje({ tipo: 'success', texto: 'Entrega registrada correctamente en Almacenamiento' });
-      setFormData({ cliente_directo_id: '', tipo_polin_id: '', color_polin_id: '', cantidad: '' });
+      setMensaje({ tipo: 'success', texto: `Entrega registrada correctamente en modalidad ${formData.estado_uso}` });
+      setFormData({ cliente_directo_id: '', tipo_polin_id: '', color_polin_id: '', cantidad: '', estado_uso: 'ALMACENAMIENTO', costo_entrega: 0 });
     } catch (err) {
       setMensaje({ tipo: 'error', texto: 'Error al registrar entrega. ' + (err.response?.data?.error || err.message) });
     }
@@ -50,7 +53,7 @@ const Entregas = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">Registrar Entrega de Polines</h1>
-      <p className="text-gray-600 text-sm">Registra la entrega inicial de polines al cliente (entra a estado ALMACENAMIENTO).</p>
+      <p className="text-gray-600 text-sm">Registra la entrega inicial de polines al cliente.</p>
 
       {mensaje.texto && (
         <div className={`p-4 rounded-md ${mensaje.tipo === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -123,6 +126,33 @@ const Entregas = () => {
             value={formData.cantidad}
             onChange={handleChange}
           />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Modalidad de Recepción</label>
+            <select
+              name="estado_uso"
+              required
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+              value={formData.estado_uso}
+              onChange={handleChange}
+            >
+              <option value="ALMACENAMIENTO">Almacenamiento</option>
+              <option value="PULL_FIJO">Pull Fijo</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Costo de Entrega ($)</label>
+            <input
+              type="number"
+              name="costo_entrega"
+              min="0"
+              step="0.01"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+              value={formData.costo_entrega}
+              onChange={handleChange}
+            />
+          </div>
         </div>
         
         <div className="pt-4 border-t">

@@ -44,7 +44,10 @@ ON CONFLICT (id) DO NOTHING;
 -- Tarifas (una por estado de uso)
 INSERT INTO tarifa (tipo, precio_por_dia, activo) VALUES
   ('ALMACENAMIENTO', 1.00, true),
-  ('TRANSPORTE',     0.80, true);
+  ('TRANSPORTE',     0.80, true),
+  ('PULL_FIJO',      1.20, true),
+  ('SINIESTRO',     10.00, true)
+ON CONFLICT (tipo) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. CLIENTES
@@ -57,17 +60,26 @@ INSERT INTO cliente_directo (id, nombre, contacto, telefono, email, activo) VALU
   ('c0000000-0000-0000-0000-000000000003', 'La Perfecta S.A.', 'Jorge Méndez',  '2222-5678', 'jmendez@perfecta.com',  true)
 ON CONFLICT (id) DO NOTHING;
 
--- Clientes Finales (destinos de entrega)
-INSERT INTO cliente_final (id, nombre, ubicacion, cliente_directo_id) VALUES
+-- Clientes Finales (destinos de entrega) sin cliente_directo_id
+INSERT INTO cliente_final (id, nombre, ubicacion) VALUES
   -- Clientes finales de Aceitera Real
-  ('f0000000-0000-0000-0000-000000000001', 'Supermercado La Colonia',  'Altamira',    'c0000000-0000-0000-0000-000000000001'),
-  ('f0000000-0000-0000-0000-000000000002', 'Walmart Managua',          'Carretera a Masaya','c0000000-0000-0000-0000-000000000001'),
+  ('f0000000-0000-0000-0000-000000000001', 'Supermercado La Colonia',  'Altamira'),
+  ('f0000000-0000-0000-0000-000000000002', 'Walmart Managua',          'Carretera a Masaya'),
   -- Clientes finales de Arroz Faisan
-  ('f0000000-0000-0000-0000-000000000003', 'Pali Mercado Central',     'Centro',      'c0000000-0000-0000-0000-000000000002'),
+  ('f0000000-0000-0000-0000-000000000003', 'Pali Mercado Central',     'Centro'),
   -- Clientes finales de La Perfecta
-  ('f0000000-0000-0000-0000-000000000004', 'La Union Metrocentro',     'Metrocentro', 'c0000000-0000-0000-0000-000000000003'),
-  ('f0000000-0000-0000-0000-000000000005', 'MaxiPali Las Mercedes',    'Las Mercedes','c0000000-0000-0000-0000-000000000003')
+  ('f0000000-0000-0000-0000-000000000004', 'La Union Metrocentro',     'Metrocentro'),
+  ('f0000000-0000-0000-0000-000000000005', 'MaxiPali Las Mercedes',    'Las Mercedes')
 ON CONFLICT (id) DO NOTHING;
+
+-- Tabla intermedia: rel_cliente_directo_final
+INSERT INTO rel_cliente_directo_final (cliente_directo_id, cliente_final_id) VALUES
+  ('c0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001'),
+  ('c0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002'),
+  ('c0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000003'),
+  ('c0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000004'),
+  ('c0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000005')
+ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
 -- 4. INVENTARIO
