@@ -11,7 +11,8 @@ export const obtenerEstadoPolines = async (cliente_directo_id) => {
 
   const estado = {
     almacenamiento: 0,
-    transporte: 0
+    transporte: 0,
+    pull_fijo: 0
   };
 
   movimientos.forEach(m => {
@@ -22,6 +23,8 @@ export const obtenerEstadoPolines = async (cliente_directo_id) => {
       estado.almacenamiento += activa;
     } else if (m.estado_uso === 'TRANSPORTE') {
       estado.transporte += activa;
+    } else if (m.estado_uso === 'PULL_FIJO') {
+      estado.pull_fijo += activa;
     }
   });
 

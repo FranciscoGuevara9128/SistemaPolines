@@ -40,9 +40,9 @@ export const liberarPolines = async (req, res) => {
     const userRole = req.headers['x-user-role'];
     const entityId = req.headers['x-user-entity-id'];
 
-    // Seguridad: Cliente directo solo puede liberar su almacenamiento. Cliente final solo su transporte.
+    // Seguridad: Cliente directo solo puede liberar su almacenamiento o pull fijo. Cliente final solo su transporte.
     if (userRole === 'CLIENTE_DIRECTO') {
-      if (estado_uso !== 'ALMACENAMIENTO' || cliente_dueño_id !== entityId) {
+      if (!['ALMACENAMIENTO', 'PULL_FIJO'].includes(estado_uso) || cliente_dueño_id !== entityId) {
          throw new Error('No tiene permisos para liberar este inventario.');
       }
     } else if (userRole === 'CLIENTE_FINAL') {

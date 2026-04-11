@@ -9,9 +9,19 @@ export const obtenerReferencias = async (userRole, entityId) => {
   if (errCD) throw new Error(errCD.message);
 
   // 2. Clientes Finales
-  let qFinales = supabase.from('cliente_final').select('id, nombre, ubicacion, cliente_directo_id');
-  if (userRole === 'CLIENTE_DIRECTO') qFinales = qFinales.eq('cliente_directo_id', entityId);
-  if (userRole === 'CLIENTE_FINAL') qFinales = qFinales.eq('id', entityId);
+  let qFinales;
+  if (userRole === 'CLIENTE_DIRECTO') {
+    // Filtrar por tabla relacional many-to-many
+    qFinales = supabase
+      .from('cliente_final')
+      .select('id, nombre, ubicacion, rel_cliente_directo_final!inner(cliente_directo_id)')
+      .eq('rel_cliente_directo_final.cliente_directo_id', entityId);
+  } else if (userRole === 'CLIENTE_FINAL') {
+    qFinales = supabase.from('cliente_final').select('id, nombre, ubicacion').eq('id', entityId);
+  } else {
+    // ADMIN o sin rol: todos
+    qFinales = supabase.from('cliente_final').select('id, nombre, ubicacion');
+  }
 
   const { data: clientesFinales, error: errCF } = await qFinales;
   if (errCF) throw new Error(errCF.message);
@@ -73,6 +83,7 @@ export const obtenerReferencias = async (userRole, entityId) => {
       tipo_polin: mov.tipo_polin,
       color_polin: mov.color_polin,
       cliente_final: mov.cliente_final,
+      fecha_inicio: mov.fecha_inicio,
       label: `[${mov.estado_uso}] ${restante} ${tipoName} ${colorName} | ${clienteName}${destinoName}`
     };
   });

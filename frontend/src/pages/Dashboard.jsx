@@ -34,11 +34,13 @@ const Dashboard = () => {
             const movs = data.data.movimientos_activos || [];
             let totalAlm = 0;
             let totalTransp = 0;
+            let totalPull = 0;
             movs.forEach(m => {
               if (m.estado_uso === 'ALMACENAMIENTO') totalAlm += m.cantidad_restante;
               if (m.estado_uso === 'TRANSPORTE') totalTransp += m.cantidad_restante;
+              if (m.estado_uso === 'PULL_FIJO') totalPull += m.cantidad_restante;
             });
-            setEstadisticas({ almacenamiento: totalAlm, transporte: totalTransp });
+            setEstadisticas({ almacenamiento: totalAlm, transporte: totalTransp, pull_fijo: totalPull });
             setMovimientos(movs);
           }
         }
@@ -64,7 +66,7 @@ const Dashboard = () => {
 
       {/* KPI Cards para Admin y Cliente Directo */}
       {(user?.role === 'ADMIN' || user?.role === 'CLIENTE_DIRECTO') && estadisticas && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Almacenamiento</h3>
             <p className="text-4xl font-extrabold text-blue-600 mt-2">{estadisticas.almacenamiento}</p>
@@ -75,6 +77,12 @@ const Dashboard = () => {
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Transporte</h3>
             <p className="text-4xl font-extrabold text-amber-600 mt-2">{estadisticas.transporte}</p>
             <div className="mt-4 text-xs text-center text-gray-400">Polines enviados a clientes finales</div>
+          </div>
+
+          <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
+            <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Pull Fijo</h3>
+            <p className="text-4xl font-extrabold text-indigo-600 mt-2">{estadisticas.pull_fijo || 0}</p>
+            <div className="mt-4 text-xs text-center text-gray-400">Polines en depósito fijo</div>
           </div>
         </div>
       )}
@@ -97,7 +105,10 @@ const Dashboard = () => {
                 {movimientos.map((m) => (
                   <tr key={m.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                      <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${m.estado_uso === 'ALMACENAMIENTO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                      <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                        m.estado_uso === 'ALMACENAMIENTO' ? 'bg-blue-100 text-blue-800' : 
+                        m.estado_uso === 'PULL_FIJO' ? 'bg-indigo-100 text-indigo-800' :
+                        'bg-amber-100 text-amber-800'}`}>
                         {m.estado_uso}
                       </span>
                     </td>
