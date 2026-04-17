@@ -2,6 +2,13 @@ import * as MovimientosService from '../services/movimientos.service.js';
 
 export const registrarEntrega = async (req, res) => {
   try {
+    const { rol: userRole } = req.user || {};
+    
+    // Seguridad: Solo el personal administrativo (ADMIN) puede registrar nuevas entregas de fábrica
+    if (userRole !== 'ADMIN') {
+      throw new Error('No tiene permisos para registrar entregas iniciales.');
+    }
+
     const data = req.body;
     const result = await MovimientosService.registrarEntrega(data);
     res.status(201).json({ success: true, data: result });
@@ -13,8 +20,7 @@ export const registrarEntrega = async (req, res) => {
 export const enviarTransporte = async (req, res) => {
   try {
     const { cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada } = req.body;
-    const userRole = req.headers['x-user-role'];
-    const entityId = req.headers['x-user-entity-id'];
+    const { rol: userRole, entityId } = req.user || {};
 
     // Seguridad: Si es cliente directo, solo puede enviar transporte de su propia fábrica
     if (userRole === 'CLIENTE_DIRECTO' && cliente_directo_id !== entityId) {
@@ -37,8 +43,7 @@ export const enviarTransporte = async (req, res) => {
 export const liberarPolines = async (req, res) => {
   try {
     const { estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar } = req.body;
-    const userRole = req.headers['x-user-role'];
-    const entityId = req.headers['x-user-entity-id'];
+    const { rol: userRole, entityId } = req.user || {};
 
     // Seguridad: Cliente directo solo puede liberar su almacenamiento o pull fijo. Cliente final solo su transporte.
     if (userRole === 'CLIENTE_DIRECTO') {
@@ -66,8 +71,17 @@ export const liberarPolines = async (req, res) => {
 
 export const getRecepcionesPendientes = async (req, res) => {
   try {
+    const { rol: userRole, entityId } = req.user || {};
     const result = await MovimientosService.getRecepcionesPendientes();
-    res.status(200).json({ success: true, data: result });
+    
+    // Filtrar: Si es cliente directo, solo ve lo que va destinado a él (o lo que él liberó, dependiendo de la lógica de negocio)
+    // En este sistema, las recepciones pendientes usualmente son devoluciones al Cliente Directo.
+    let listado = result;
+    if (userRole === 'CLIENTE_DIRECTO') {
+      listado = result.filter(mov => mov.cliente_directo_id === entityId);
+    }
+
+    res.status(200).json({ success: true, data: listado });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
@@ -75,6 +89,18 @@ export const getRecepcionesPendientes = async (req, res) => {
 
 export const procesarRecepcion = async (req, res) => {
   try {
+    const { movementId } = req.body;
+    const { rol: userRole, entityId } = req.user || {};
+
+    // Validar propiedad del movimiento antes de procesar
+    if (userRole === 'CLIENTE_DIRECTO') {
+       const pendientes = await MovimientosService.getRecepcionesPendientes();
+       const mov = pendientes.find(m => m.id === movementId);
+       if (!mov || mov.cliente_directo_id !== entityId) {
+         throw new Error('No tiene permisos para recibir este lote o el lote no existe.');
+       }
+    }
+
     const data = req.body;
     const result = await MovimientosService.procesarRecepcion(data);
     res.status(200).json({ success: true, data: result });

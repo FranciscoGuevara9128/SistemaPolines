@@ -6,6 +6,7 @@ import Transporte from './pages/Transporte';
 import Liberaciones from './pages/Liberaciones';
 import Recepcion from './pages/Recepcion';
 import Facturacion from './pages/Facturacion';
+import Gestion from './pages/Gestion';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -30,6 +31,7 @@ function App() {
             <Route path="entregas" element={<Entregas />} />
             <Route path="recepcion" element={<Recepcion />} />
             <Route path="facturacion" element={<Facturacion />} />
+            <Route path="gestion" element={<Gestion />} />
           </Route>
         </Route>
       </Route>

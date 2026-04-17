@@ -12,6 +12,7 @@ const MainLayout = () => {
     { name: 'Liberaciones', href: '/liberaciones', roles: ['ADMIN', 'CLIENTE_DIRECTO', 'CLIENTE_FINAL'] },
     { name: 'Recepción', href: '/recepcion', roles: ['ADMIN'] },
     { name: 'Facturación', href: '/facturacion', roles: ['ADMIN'] },
+    { name: 'Gestión', href: '/gestion', roles: ['ADMIN'] },
   ];
 
   // Filter navigation by role

@@ -20,15 +20,17 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, token) => {
     // userData format: { role: 'ADMIN' | 'CLIENTE_DIRECTO' | 'CLIENTE_FINAL', entityId: 'uuid' | null, entityName: 'string' }
     setUser(userData);
+    if (token) localStorage.setItem('polines_token', token);
     localStorage.setItem('polines_user', JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('polines_user');
+    localStorage.removeItem('polines_token');
   };
 
   return (

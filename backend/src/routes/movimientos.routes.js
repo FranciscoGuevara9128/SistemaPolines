@@ -1,12 +1,13 @@
 import express from 'express';
 import { registrarEntrega, enviarTransporte, liberarPolines, getRecepcionesPendientes, procesarRecepcion } from '../controllers/movimientos.controller.js';
+import { verificarToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-router.post('/entregas', registrarEntrega);
-router.post('/movimientos/transporte', enviarTransporte);
-router.post('/movimientos/liberacion', liberarPolines);
-router.get('/recepciones/pendientes', getRecepcionesPendientes);
-router.post('/recepcion', procesarRecepcion);
+router.post('/entregas', verificarToken, registrarEntrega);
+router.post('/movimientos/transporte', verificarToken, enviarTransporte);
+router.post('/movimientos/liberacion', verificarToken, liberarPolines);
+router.get('/recepciones/pendientes', verificarToken, getRecepcionesPendientes);
+router.post('/recepcion', verificarToken, procesarRecepcion);
 
 export default router;

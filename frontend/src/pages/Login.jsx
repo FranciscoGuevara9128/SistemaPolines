@@ -1,58 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getReferencias } from '../services/api';
+import { loginUser } from '../services/api';
 
 const Login = () => {
-  const [role, setRole] = useState('ADMIN');
-  const [entityId, setEntityId] = useState('');
-  const [referencias, setReferencias] = useState({ clientes_directos: [], clientes_finales: [] });
-  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchRef = async () => {
-      try {
-        const { data } = await getReferencias();
-        if (data.success) {
-          setReferencias({
-            clientes_directos: data.data.clientes_directos || [],
-            clientes_finales: data.data.clientes_finales || []
-          });
-        }
-      } catch (e) {
-        console.error('Error fetching data', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRef();
-  }, []);
-
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (role !== 'ADMIN' && !entityId) {
-      alert('Debe seleccionar una entidad para este rol.');
-      return;
-    }
+    setError('');
+    setIsSubmitting(true);
 
-    let entityName = 'Administrador General';
-    if (role === 'CLIENTE_DIRECTO') {
-      const cd = referencias.clientes_directos.find(c => c.id === entityId);
-      if (cd) entityName = cd.nombre;
-    } else if (role === 'CLIENTE_FINAL') {
-      const cf = referencias.clientes_finales.find(c => c.id === entityId);
-      if (cf) entityName = cf.nombre;
+    try {
+      const { data } = await loginUser({ email, password });
+      
+      if (data.success) {
+        // data format: { success, token, user: { role, entityId, entityName, ... } }
+        login(data.user, data.token);
+        navigate('/'); // Redirigir al dashboard
+      } else {
+        setError(data.message || 'Error al iniciar sesión');
+      }
+    } catch (err) {
+      console.error('Error logging in:', err);
+      setError(err.response?.data?.message || 'Error de conexión con el servidor');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    login({ role, entityId: role === 'ADMIN' ? null : entityId, entityName });
-    navigate('/'); // Redirect to dashboard
   };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p>Cargando opciones...</p></div>;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -62,76 +42,68 @@ const Login = () => {
             Sistema de Polines
           </h2>
           <p className="mt-2 text-center text-sm text-gray-500">
-            Selector de Perfil
+            Acceso al Sistema
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="rounded-md shadow-sm space-y-4">
+        
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Seleccione el Rol
+                Correo Electrónico
               </label>
-              <select
-                value={role}
-                onChange={(e) => {
-                  setRole(e.target.value);
-                  setEntityId('');
-                }}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
-              >
-                <option value="ADMIN">Administrador General</option>
-                <option value="CLIENTE_DIRECTO">Cliente Directo</option>
-                <option value="CLIENTE_FINAL">Cliente Final</option>
-              </select>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="ejemplo@correo.com"
+              />
             </div>
-
-            {role === 'CLIENTE_DIRECTO' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Seleccione el Cliente Directo
-                </label>
-                <select
-                  required
-                  value={entityId}
-                  onChange={(e) => setEntityId(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
-                >
-                  <option value="">-- Seleccione una entidad --</option>
-                  {referencias.clientes_directos.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {role === 'CLIENTE_FINAL' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Seleccione el Cliente Final
-                </label>
-                <select
-                  required
-                  value={entityId}
-                  onChange={(e) => setEntityId(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
-                >
-                  <option value="">-- Seleccione una entidad --</option>
-                  {referencias.clientes_finales.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
+            <div className="pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150"
+              disabled={isSubmitting}
+              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white ${isSubmitting ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150`}
             >
-              Iniciar Sesión de Prueba
+              {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
           </div>
         </form>

@@ -5,18 +5,14 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const storedUser = localStorage.getItem('polines_user');
-  if (storedUser) {
-    try {
-      const user = JSON.parse(storedUser);
-      if (user.role) config.headers['X-User-Role'] = user.role;
-      if (user.entityId) config.headers['X-User-Entity-Id'] = user.entityId;
-    } catch (e) {
-      // Ignorar errores de parsing locales
-    }
+  const token = localStorage.getItem('polines_token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
+
+export const loginUser = (credentials) => api.post('/login', credentials);
 
 export const getReferencias = () => api.get('/referencias');
 export const getPolinesCliente = (clienteId) => api.get(`/clientes/${clienteId}/polines`);
@@ -26,5 +22,21 @@ export const liberarPolines = (data) => api.post('/movimientos/liberacion', data
 export const generarFacturacion = (data) => api.post('/facturacion/generar', data);
 export const getRecepcionesPendientes = () => api.get('/recepciones/pendientes');
 export const procesarRecepcion = (data) => api.post('/recepcion', data);
+
+// GESTION
+export const getGestionClientesDirectos = () => api.get('/gestion/clientes-directos');
+export const createClienteDirecto = (data) => api.post('/gestion/clientes-directos', data);
+export const updateClienteDirecto = (id, data) => api.put(`/gestion/clientes-directos/${id}`, data);
+
+export const getGestionClientesFinales = () => api.get('/gestion/clientes-finales');
+export const createClienteFinal = (data) => api.post('/gestion/clientes-finales', data);
+export const updateClienteFinal = (id, data) => api.put(`/gestion/clientes-finales/${id}`, data);
+
+export const getGestionUsuarios = () => api.get('/gestion/usuarios');
+export const createUsuario = (data) => api.post('/gestion/usuarios', data);
+export const updateUsuario = (id, data) => api.put(`/gestion/usuarios/${id}`, data);
+
+export const getGestionInventario = () => api.get('/gestion/inventario');
+export const updateInventario = (id, data) => api.put(`/gestion/inventario/${id}`, data);
 
 export default api;

@@ -60,8 +60,11 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">
-        {user?.role === 'ADMIN' ? 'Dashboard Global' : 
-         user?.role === 'CLIENTE_DIRECTO' ? 'Mi Estado de Polines' : 'Historial de Lotes Recibidos'}
+        Bienvenido, <span className="text-indigo-600">{user?.nombre || user?.entityName}</span>
+        <span className="text-sm font-normal text-gray-500 ml-2">
+          ({user?.role === 'ADMIN' ? 'Administrador' : 
+            user?.role === 'CLIENTE_DIRECTO' ? 'Cliente Directo' : 'Cliente Final'})
+        </span>
       </h1>
 
       {/* KPI Cards para Admin y Cliente Directo */}
