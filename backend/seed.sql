@@ -20,7 +20,7 @@ ALTER TABLE detalle_facturacion
 TRUNCATE TABLE
   detalle_facturacion, facturacion, tarifa, inventario,
   movimiento_polines, color_polin, tipo_polin,
-  cliente_final, cliente_directo
+  cliente_final, cliente_directo, usuario
 RESTART IDENTITY CASCADE;
 
 -- ─────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ RESTART IDENTITY CASCADE;
 
 -- Tipos de Polín
 INSERT INTO tipo_polin (id, nombre, descripcion) VALUES
-  ('a0000000-0000-0000-0000-000000000001', 'Madera 3 Metros',   'Polín de madera curada, largo 3m')
+  ('a0000000-0000-0000-0000-000000000001', 'Polin 40" x 48"',   'Polín de madera 40" x 48" (1 X 1.20)')
 ON CONFLICT (id) DO NOTHING;
 
 -- Colores
@@ -78,3 +78,20 @@ INSERT INTO rel_cliente_directo_final (cliente_directo_id, cliente_final_id) VAL
 INSERT INTO inventario (tipo_polin_id, color_polin_id, cantidad_total, cantidad_disponible) VALUES
   -- Madera/Amarillo: 5000 total.
   ('a0000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000002',  5000,  5000);
+
+-- ─────────────────────────────────────────────────────────────
+-- 5. USUARIOS
+-- Password para todos: admin
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO usuario (nombre, email, password, rol, activo, cliente_directo_id, cliente_final_id) VALUES
+  -- Admin
+  ('Administrador Sistema', 'admin@polines.com', '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'PERSONAL', true, null, null),
+  
+  -- Usuarios para Clientes Directos
+  ('Usuario Aceitera Real', 'aceitera@polines.com', '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'CLIENTE_DIRECTO', true, 'c0000000-0000-0000-0000-000000000001', null),
+  ('Usuario Arroz Faisan',   'faisan@polines.com',   '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'CLIENTE_DIRECTO', true, 'c0000000-0000-0000-0000-000000000002', null),
+  ('Usuario La Perfecta',    'perfecta@polines.com', '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'CLIENTE_DIRECTO', true, 'c0000000-0000-0000-0000-000000000003', null),
+  
+  -- Usuarios para Clientes Finales
+  ('Usuario CEDIS Mantica', 'mantica@polines.com', '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'CLIENTE_FINAL', true, null, 'f0000000-0000-0000-0000-000000000001'),
+  ('Usuario CEDIS Walmart', 'walmart@polines.com', '$2b$10$SCFkIpNw5MO6x9Dx5xOKeu1pieZ0ne.0r1ePl3KYSb/k0.k/zZIzm', 'CLIENTE_FINAL', true, null, 'f0000000-0000-0000-0000-000000000002');

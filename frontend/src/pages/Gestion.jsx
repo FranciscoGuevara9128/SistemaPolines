@@ -22,7 +22,19 @@ const Gestion = () => {
     try {
       let res;
       if (activeTab === 'directos') res = await api.getGestionClientesDirectos();
-      else if (activeTab === 'finales') res = await api.getGestionClientesFinales();
+      else if (activeTab === 'finales') {
+        const [resFinales, resDirectos] = await Promise.all([
+          api.getGestionClientesFinales(),
+          api.getGestionClientesDirectos()
+        ]);
+        setData(prev => ({ 
+          ...prev, 
+          finales: resFinales.data.data,
+          directos: resDirectos.data.data 
+        }));
+        setLoading(false);
+        return;
+      }
       else if (activeTab === 'usuarios') {
         const [resUsers, resCD, resCF] = await Promise.all([
           api.getGestionUsuarios(),
@@ -58,11 +70,19 @@ const Gestion = () => {
       if (activeTab === 'finales') {
         const directosIds = item.rel_cliente_directo_final?.map(r => r.cliente_directo_id) || [];
         setFormData({ ...item, directosIds });
-      } else {
+      } else if (activeTab === 'usuarios') {
         setFormData({ ...item, password: '' }); // Limpiar password al editar usuario
+      } else {
+        setFormData({ ...item });
       }
     } else {
-      setFormData(activeTab === 'finales' ? { directosIds: [] } : { rol: '', activo: true });
+      if (activeTab === 'finales') {
+        setFormData({ directosIds: [] });
+      } else if (activeTab === 'usuarios') {
+        setFormData({ rol: '', activo: true, password: '' });
+      } else {
+        setFormData({ activo: true });
+      }
     }
     setIsModalOpen(true);
   };
@@ -72,15 +92,20 @@ const Gestion = () => {
     setLoading(true);
     try {
       let res;
-      // Limpiar IDs de asociación según el rol antes de guardar
+      // LIMPIEZA DE DATOS SEGÚN TAB PARA EVITAR ERRORES DE SCHEMA CACHE
       let preparedData = { ...formData };
+      
+      // Eliminar objetos anidados comunes y campos que no existen en tablas base
+      const fieldsToRemove = ['tipo_polin', 'color_polin', 'cliente_directo', 'cliente_final', 'rel_cliente_directo_final'];
+      fieldsToRemove.forEach(field => delete preparedData[field]);
+
       if (activeTab === 'usuarios') {
         if (preparedData.rol !== 'CLIENTE_DIRECTO') preparedData.cliente_directo_id = null;
         if (preparedData.rol !== 'CLIENTE_FINAL') preparedData.cliente_final_id = null;
-        
-        // ELIMINAR OBJETOS ANIDADOS (PROVENIENTES DEL SELECT) PARA EVITAR ERROR DE COLUMNA NO EXISTENTE
-        delete preparedData.cliente_directo;
-        delete preparedData.cliente_final;
+      } else {
+        // Para otras pestañas, asegurar que no se envíen campos de usuario
+        delete preparedData.rol;
+        delete preparedData.password;
       }
 
       if (activeTab === 'directos') {
@@ -289,8 +314,31 @@ const Gestion = () => {
                     <label className="block text-sm font-medium text-gray-700">Ubicación Geográfica</label>
                     <input type="text" value={formData.ubicacion || ''} onChange={e => setFormData({...formData, ubicacion: e.target.value})} className="mt-1 block w-full border rounded-md p-2" />
                   </div>
-                  {/* Simplificación: Para relaciones many-to-many, en una simulación real se cargaría la lista de Clientes Directos aquí */}
-                  <p className="text-xs text-gray-400">Nota: Las relaciones se gestionan vía API. En esta versión demo se cargan de 'rel_cliente_directo_final'.</p>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Asociar con Clientes Directos (Fábricas)</label>
+                    <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-gray-50">
+                      {data.directos.map(cd => (
+                        <label key={cd.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded transition">
+                          <input 
+                            type="checkbox" 
+                            checked={formData.directosIds?.includes(cd.id)} 
+                            onChange={e => {
+                              const ids = formData.directosIds || [];
+                              if (e.target.checked) {
+                                setFormData({ ...formData, directosIds: [...ids, cd.id] });
+                              } else {
+                                setFormData({ ...formData, directosIds: ids.filter(id => id !== cd.id) });
+                              }
+                            }}
+                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-gray-700">{cd.nombre}</span>
+                        </label>
+                      ))}
+                      {data.directos.length === 0 && <p className="text-xs text-gray-400 italic">No hay clientes directos disponibles.</p>}
+                    </div>
+                  </div>
                 </>
               )}
 
