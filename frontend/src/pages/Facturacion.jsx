@@ -10,17 +10,17 @@ const MESES = [
 
 const TRAMO_STYLE = {
   ALMACENAMIENTO: { badge: 'bg-blue-100 text-blue-800', icon: '🏭', label: 'Almacenamiento' },
-  TRANSPORTE:     { badge: 'bg-amber-100 text-amber-800', icon: '🚚', label: 'Transporte' },
-  PULL_FIJO:      { badge: 'bg-indigo-100 text-indigo-800', icon: '📉', label: 'Pull Fijo' },
-  COSTO_ENTREGA:  { badge: 'bg-emerald-100 text-emerald-800', icon: '💵', label: 'Costo Entrega' },
-  SINIESTRO:      { badge: 'bg-red-100 text-red-800', icon: '🔥', label: 'Siniestro' }
+  TRANSPORTE: { badge: 'bg-amber-100 text-amber-800', icon: '🚚', label: 'Transporte' },
+  PULL_FIJO: { badge: 'bg-indigo-100 text-indigo-800', icon: '📉', label: 'Pull Fijo' },
+  COSTO_ENTREGA: { badge: 'bg-emerald-100 text-emerald-800', icon: '💵', label: 'Costo Entrega' },
+  SINIESTRO: { badge: 'bg-red-100 text-red-800', icon: '🔥', label: 'Siniestro' }
 };
 
 const Facturacion = () => {
   const [formData, setFormData] = useState({
     cliente_directo_id: '',
-    mes: new Date().getMonth() + 1,
-    anio: new Date().getFullYear()
+    fecha_desde: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    fecha_hasta: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
   });
   const [factura, setFactura] = useState(null);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
@@ -53,8 +53,8 @@ const Facturacion = () => {
     try {
       const resp = await generarFacturacion({
         cliente_directo_id: formData.cliente_directo_id,
-        mes: parseInt(formData.mes, 10),
-        anio: parseInt(formData.anio, 10)
+        fecha_desde: formData.fecha_desde,
+        fecha_hasta: formData.fecha_hasta
       });
       setFactura(resp.data.data);
       setMensaje({ tipo: 'success', texto: 'Facturación generada correctamente.' });
@@ -89,28 +89,26 @@ const Facturacion = () => {
           </select>
         </div>
 
-        <div className="w-40">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
-          <select
-            name="mes"
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Desde</label>
+          <input
+            type="date"
+            name="fecha_desde"
             required
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
-            value={formData.mes}
+            value={formData.fecha_desde}
             onChange={handleChange}
-          >
-            {MESES.map(m => <option key={m.val} value={m.val}>{m.nombre}</option>)}
-          </select>
+          />
         </div>
 
-        <div className="w-32">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Hasta</label>
           <input
-            type="number"
-            name="anio"
-            min="2020" max="2100"
+            type="date"
+            name="fecha_hasta"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-            value={formData.anio}
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            value={formData.fecha_hasta}
             onChange={handleChange}
           />
         </div>
@@ -144,7 +142,9 @@ const Facturacion = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Período Facturado</p>
-                <p className="font-medium">{mesNombre} {factura.anio}</p>
+                <p className="font-medium">
+                  {factura.fecha_desde ? `${new Date(factura.fecha_desde + 'T00:00:00').toLocaleDateString('es-NI')} → ${new Date(factura.fecha_hasta + 'T00:00:00').toLocaleDateString('es-NI')}` : `${mesNombre} ${factura.anio}`}
+                </p>
               </div>
               <div>
                 <p className="text-gray-500">Fecha de Generación</p>
@@ -162,8 +162,8 @@ const Facturacion = () => {
                   return (
                     <div key={tramo} className={`rounded-lg p-3 border ${style.badge.split(' ')[0]} bg-opacity-30 border-opacity-50`}>
                       <div className="flex items-center gap-2 mb-1">
-                         <span>{style.icon}</span>
-                         <span className={`text-xs font-semibold uppercase ${style.badge.split(' ')[1]}`}>{style.label}</span>
+                        <span>{style.icon}</span>
+                        <span className={`text-xs font-semibold uppercase ${style.badge.split(' ')[1]}`}>{style.label}</span>
                       </div>
                       <p className={`text-xl font-bold ${style.badge.split(' ')[1].replace('-800', '-900')}`}>
                         ${subtotal.toFixed(2)}
@@ -177,7 +177,7 @@ const Facturacion = () => {
             {/* Total */}
             <div className="pt-4 border-t flex justify-between items-center">
               <p className="text-gray-600 font-medium">Total a Pagar</p>
-              <p className="text-3xl font-extrabold text-gray-900">${parseFloat(factura.total).toFixed(2)}</p>
+              <p className="text-3xl font-extrabold text-gray-900">${parseFloat(factura.total).toFixed(4)}</p>
             </div>
 
             {/* Detalles por tramo */}
@@ -214,7 +214,7 @@ const Facturacion = () => {
                               </td>
                               <td className="px-3 py-2 text-right">{d.cantidad}</td>
                               <td className="px-3 py-2 text-right">{d.dias}</td>
-                              <td className="px-3 py-2 text-right">${parseFloat(d.tarifa).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right">${parseFloat(d.tarifa).toFixed(4)}</td>
                               <td className="px-3 py-2 text-right font-medium">${parseFloat(d.subtotal).toFixed(2)}</td>
                             </tr>
                           );

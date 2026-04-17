@@ -15,9 +15,10 @@ import { supabase } from '../config/supabase.js';
 // Los hijos que nacieron ANTES del mes solo reducen la cantidad
 // inicial del raíz (sin generar segmento nuevo).
 // ─────────────────────────────────────────────────────────────
-export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
-  const fechaInicioMes = new Date(anio, mes - 1, 1);
-  const fechaFinMes    = new Date(anio, mes, 0, 23, 59, 59);
+export const generarFacturacion = async ({ cliente_directo_id, mes, anio, fecha_desde, fecha_hasta }) => {
+  // Si se proporcionan fechas manuales, se usan. De lo contrario, se usa el mes completo.
+  const fechaInicioMes = fecha_desde ? new Date(fecha_desde + 'T00:00:00') : new Date(anio, mes - 1, 1);
+  const fechaFinMes    = fecha_hasta ? new Date(fecha_hasta + 'T23:59:59') : new Date(anio, mes, 0, 23, 59, 59);
 
   // 1. Todos los movimientos del cliente con actividad en el período
   const { data: todosMovimientos, error: movsErr } = await supabase
@@ -191,9 +192,10 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
   }
 
   // 3.5. Calcular siniestros del mes
+  // REGLA: No se cobra siniestro al cliente directo si la recepción viene de un cliente final (TRANSPORTE)
   const { data: siniestrosData, error: sErr } = await supabase
     .from('recepcion_polines')
-    .select('*, movimiento_polines!inner(cliente_directo_id)')
+    .select('*, movimiento_polines!inner(cliente_directo_id, estado_uso)')
     .eq('estado_recepcion', 'RECIBIDO')
     .eq('movimiento_polines.cliente_directo_id', cliente_directo_id)
     .gte('fecha_recepcion', fechaInicioMes.toISOString())
@@ -202,7 +204,7 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
   if (!sErr && siniestrosData) {
     const tarifaSiniestro = getTarifa('SINIESTRO');
     for (const rec of siniestrosData) {
-      if (rec.cantidad_siniestrados > 0) {
+      if (rec.cantidad_siniestrados > 0 && rec.movimiento_polines.estado_uso !== 'TRANSPORTE') {
         const subtotalSin = rec.cantidad_siniestrados * tarifaSiniestro;
         total_siniestros += subtotalSin;
         detalles.push({
@@ -218,19 +220,31 @@ export const generarFacturacion = async ({ cliente_directo_id, mes, anio }) => {
     }
   }
 
-  // 4. Insertar cabecera de factura
-  // OJO: Hay que actualizar la BDD en la tabla facturacion para soportar esos nuevos totales, 
-  // O podemos agrupar en total.
-  // Como no creamos campos en facturacion, los mapearemos.
+  // 4. Limpieza de facturas previas para este período (Evitar duplicados)
+  // Intentamos limpiar por fechas exactas si están disponibles, o por mes/año.
+  let queryDelete = supabase.from('facturacion').delete().eq('cliente_directo_id', cliente_directo_id);
+  
+  if (fecha_desde && fecha_hasta) {
+    queryDelete = queryDelete.eq('fecha_desde', fecha_desde).eq('fecha_hasta', fecha_hasta);
+  } else {
+    queryDelete = queryDelete.eq('mes', mes).eq('anio', anio);
+  }
+
+  const { error: cleanupErr } = await queryDelete;
+  if (cleanupErr) console.warn('Aviso: No se pudo limpiar factura previa (posible falta de columnas fecha_desde/hasta):', cleanupErr.message);
+
+  // 5. Insertar cabecera de factura
   const totalFactura = total_almacenamiento + total_transporte + total_pull_fijo + total_costo_entrega + total_siniestros;
   
   const { data: factura, error: facErr } = await supabase
     .from('facturacion')
     .insert([{
       cliente_directo_id,
-      mes,
-      anio,
-      total_almacenamiento: total_almacenamiento + total_pull_fijo + total_costo_entrega + total_siniestros, // Agrupado para compatibilidad si no existen columnas
+      mes: mes || (fecha_desde ? new Date(fecha_desde).getMonth() + 1 : null),
+      anio: anio || (fecha_desde ? new Date(fecha_desde).getFullYear() : null),
+      fecha_desde: fecha_desde || null,
+      fecha_hasta: fecha_hasta || null,
+      total_almacenamiento: total_almacenamiento + total_pull_fijo + total_costo_entrega + total_siniestros, // Agrupado para compatibilidad
       total_transporte,
       total: totalFactura,
       fecha_generacion: new Date().toISOString()
