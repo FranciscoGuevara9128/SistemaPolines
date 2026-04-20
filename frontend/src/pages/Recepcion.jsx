@@ -111,7 +111,7 @@ const Recepcion = () => {
                     <p className="text-xs text-gray-400 mt-1">Fecha Liberación: {new Date(rec.fecha_liberacion).toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-3xl font-bold text-blue-600">{rec.cantidad_liberada}</span>
+                    <span className="text-3xl font-bold text-primary-600">{rec.cantidad_liberada}</span>
                     <p className="text-xs font-medium uppercase text-gray-500">Total a Recibir</p>
                   </div>
                 </div>
@@ -146,7 +146,7 @@ const Recepcion = () => {
                   <div>
                     <button
                       onClick={() => handleProcesar(rec.id)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
+                      className="w-full bg-primary-500 hover:bg-primary-600 text-black font-bold py-2.5 px-4 rounded-md transition duration-150 shadow-sm"
                     >
                       Confirmar
                     </button>

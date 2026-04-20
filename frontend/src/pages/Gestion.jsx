@@ -142,7 +142,7 @@ const Gestion = () => {
         {activeTab !== 'inventario' && (
           <button 
             onClick={() => openModal()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            className="bg-primary-500 text-black font-bold px-4 py-2 rounded-lg hover:bg-primary-600 transition shadow-sm"
           >
             + Añadir Nuevo
           </button>
@@ -160,7 +160,7 @@ const Gestion = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-md font-medium transition ${activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 rounded-md font-bold transition ${activeTab === tab.id ? 'bg-primary-500 text-black' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
           >
             {tab.label}
           </button>
@@ -251,11 +251,11 @@ const Gestion = () => {
                       {item.tipo_polin?.nombre} <span className="text-gray-400">({item.color_polin?.nombre})</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold">{item.cantidad_total}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-indigo-600 font-bold">{item.cantidad_disponible}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-primary-700 font-bold">{item.cantidad_disponible}</td>
                   </>
                 )}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => openModal(item)} className="text-indigo-600 hover:text-indigo-900">
+                  <button onClick={() => openModal(item)} className="text-primary-700 hover:text-primary-900 font-bold">
                     {activeTab === 'inventario' ? 'Ajustar' : 'Editar'}
                   </button>
                 </td>
@@ -331,7 +331,7 @@ const Gestion = () => {
                                 setFormData({ ...formData, directosIds: ids.filter(id => id !== cd.id) });
                               }
                             }}
-                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                             className="rounded text-primary-600 focus:ring-primary-500"
                           />
                           <span className="text-gray-700">{cd.nombre}</span>
                         </label>
@@ -371,13 +371,13 @@ const Gestion = () => {
 
                   {/* Asociación condicional */}
                   {formData.rol === 'CLIENTE_DIRECTO' && (
-                    <div className="bg-indigo-50 p-3 rounded-md animate-slideDown">
-                      <label className="block text-sm font-bold text-indigo-700">Fábrica / Cliente Directo Asociado</label>
+                    <div className="bg-primary-50 p-3 rounded-md animate-slideDown border border-primary-100">
+                      <label className="block text-sm font-bold text-primary-900">Fábrica / Cliente Directo Asociado</label>
                       <select 
                         required 
                         value={formData.cliente_directo_id || ''} 
                         onChange={e => setFormData({...formData, cliente_directo_id: e.target.value})} 
-                        className="mt-1 block w-full border-indigo-200 rounded-md p-2 bg-white"
+                        className="mt-1 block w-full border-primary-200 rounded-md p-2 bg-white focus:ring-primary-500 focus:border-primary-500"
                       >
                         <option value="">-- Seleccione Fábrica --</option>
                         {data.directos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -420,7 +420,7 @@ const Gestion = () => {
 
               <div className="flex justify-end space-x-3 pt-6 border-t mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
-                <button type="submit" disabled={loading} className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300">
+                <button type="submit" disabled={loading} className="px-6 py-2 bg-primary-500 text-black font-bold rounded-md hover:bg-primary-600 disabled:bg-primary-200 shadow-sm">
                   {loading ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>

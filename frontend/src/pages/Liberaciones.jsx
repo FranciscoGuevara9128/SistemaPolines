@@ -163,7 +163,7 @@ const Liberaciones = () => {
             required
             min="1"
             max={movSeleccionado?.cantidad_restante || undefined}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
             value={formData.cantidad_liberar}
             onChange={handleChange}
             placeholder={movSeleccionado ? `Máx. ${movSeleccionado.cantidad_restante}` : 'Seleccione inventario primero'}
@@ -183,7 +183,7 @@ const Liberaciones = () => {
         <div className="pt-4 border-t">
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
+            className="w-full bg-primary-500 hover:bg-primary-600 text-black font-bold py-2.5 px-4 rounded-md transition duration-150 shadow-sm"
           >
             Confirmar Liberación
           </button>

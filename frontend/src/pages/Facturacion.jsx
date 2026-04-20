@@ -78,7 +78,7 @@ const Facturacion = () => {
           <select
             name="cliente_directo_id"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border bg-white"
             value={formData.cliente_directo_id}
             onChange={handleChange}
           >
@@ -95,7 +95,7 @@ const Facturacion = () => {
             type="date"
             name="fecha_desde"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border bg-white"
             value={formData.fecha_desde}
             onChange={handleChange}
           />
@@ -107,7 +107,7 @@ const Facturacion = () => {
             type="date"
             name="fecha_hasta"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border bg-white"
             value={formData.fecha_hasta}
             onChange={handleChange}
           />
@@ -115,7 +115,7 @@ const Facturacion = () => {
 
         <button
           type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 h-10"
+          className="bg-primary-500 hover:bg-primary-600 text-black font-bold py-2 px-6 rounded-md transition duration-150 h-10 shadow-sm"
         >
           Generar y Calcular
         </button>
@@ -132,7 +132,7 @@ const Facturacion = () => {
           {/* Cabecera */}
           <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Resumen de Factura</h3>
-            <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-semibold font-mono">
+            <span className="bg-primary-100 text-primary-900 text-xs px-2.5 py-0.5 rounded-full font-bold font-mono border border-primary-200">
               {factura.id?.slice(0, 8)}...
             </span>
           </div>
@@ -185,7 +185,7 @@ const Facturacion = () => {
               <div>
                 <button
                   onClick={() => setMostrarDetalles(v => !v)}
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                  className="text-sm text-primary-700 font-bold hover:underline flex items-center gap-1"
                 >
                   {mostrarDetalles ? '▲ Ocultar' : '▼ Ver'} desglose por tramo ({factura.detalles.length} líneas)
                 </button>

@@ -62,7 +62,7 @@ const Dashboard = () => {
       <h1 className="text-2xl font-bold text-gray-800 border-b pb-2">
         Bienvenido, <span className="text-indigo-600">{user?.nombre || user?.entityName}</span>
         <span className="text-sm font-normal text-gray-500 ml-2">
-          ({user?.role === 'ADMIN' ? 'Administrador' : 
+          ({user?.role === 'ADMIN' ? 'Administrador' :
             user?.role === 'CLIENTE_DIRECTO' ? 'Cliente Directo' : 'Cliente Final'})
         </span>
       </h1>
@@ -70,12 +70,12 @@ const Dashboard = () => {
       {/* KPI Cards para Admin y Cliente Directo */}
       {(user?.role === 'ADMIN' || user?.role === 'CLIENTE_DIRECTO') && estadisticas && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
+          <div className="bg-white border text-center rounded-lg shadow-  sm p-6 flex flex-col justify-center transform transition hover:scale-105">
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Almacenamiento</h3>
             <p className="text-4xl font-extrabold text-blue-600 mt-2">{estadisticas.almacenamiento}</p>
             <div className="mt-4 text-xs text-center text-gray-400">Polines actualmente en fábricas</div>
           </div>
-          
+
           <div className="bg-white border text-center rounded-lg shadow-sm p-6 flex flex-col justify-center transform transition hover:scale-105">
             <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">En Transporte</h3>
             <p className="text-4xl font-extrabold text-amber-600 mt-2">{estadisticas.transporte}</p>
@@ -108,10 +108,9 @@ const Dashboard = () => {
                 {movimientos.map((m) => (
                   <tr key={m.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                      <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                        m.estado_uso === 'ALMACENAMIENTO' ? 'bg-blue-100 text-blue-800' : 
+                      <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${m.estado_uso === 'ALMACENAMIENTO' ? 'bg-blue-100 text-blue-800' :
                         m.estado_uso === 'PULL_FIJO' ? 'bg-indigo-100 text-indigo-800' :
-                        'bg-amber-100 text-amber-800'}`}>
+                          'bg-amber-100 text-amber-800'}`}>
                         {m.estado_uso}
                       </span>
                     </td>

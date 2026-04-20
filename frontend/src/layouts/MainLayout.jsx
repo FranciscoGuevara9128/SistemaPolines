@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.svg';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -20,12 +21,13 @@ const MainLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <nav className="bg-blue-900 border-b border-blue-800 shadow-md">
+      <nav className="bg-brand-navy border-b border-black shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <span className="text-white font-bold text-xl tracking-wider">📦 PolinesControl</span>
+                <img src={logo} alt="Logo" className="h-8 w-8 mr-2" />
+                <span className="text-white font-bold text-xl tracking-wider">AL Soluciones</span>
               </div>
               <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
                 {filteredNav.map((item) => {
@@ -34,11 +36,10 @@ const MainLayout = () => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`${
-                        isActive
-                          ? 'border-blue-300 text-white'
-                          : 'border-transparent text-gray-300 hover:text-white hover:border-gray-300'
-                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200`}
+                      className={`${isActive
+                        ? 'border-primary-500 text-white'
+                        : 'border-transparent text-gray-300 hover:text-white hover:border-primary-500'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200`}
                     >
                       {item.name}
                     </Link>
@@ -46,18 +47,18 @@ const MainLayout = () => {
                 })}
               </div>
             </div>
-            
+
             {/* User Info & Logout */}
             <div className="flex items-center space-x-4">
               {user && (
                 <div className="text-sm text-gray-300 text-right hidden sm:block">
                   <p className="font-semibold text-white">{user.entityName}</p>
-                  <p className="text-xs text-blue-300">{user.role}</p>
+                  <p className="text-xs text-primary-400 font-bold">{user.role}</p>
                 </div>
               )}
               <button
                 onClick={logout}
-                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-900 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-xs font-bold rounded text-black bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
               >
                 Salir
               </button>
@@ -71,9 +72,9 @@ const MainLayout = () => {
           <Outlet />
         </div>
       </main>
-      
+
       <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} Sistema de Control de Polines. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} AL Soluciones. Todos los derechos reservados.
       </footer>
     </div>
   );

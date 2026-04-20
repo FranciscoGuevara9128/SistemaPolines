@@ -122,7 +122,7 @@ const Entregas = () => {
             name="cantidad"
             required
             min="1"
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
             value={formData.cantidad}
             onChange={handleChange}
           />
@@ -148,7 +148,7 @@ const Entregas = () => {
               name="costo_entrega"
               min="0"
               step="0.01"
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
               value={formData.costo_entrega}
               onChange={handleChange}
             />
@@ -158,7 +158,7 @@ const Entregas = () => {
         <div className="pt-4 border-t">
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
+            className="w-full bg-primary-500 hover:bg-primary-600 text-black font-bold py-2.5 px-4 rounded-md transition duration-150 shadow-sm"
           >
             Registrar Entrega
           </button>

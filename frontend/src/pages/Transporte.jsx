@@ -128,7 +128,7 @@ const Transporte = () => {
           <select
             name="grupo_origen"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border bg-white"
             value={formData.grupo_origen}
             onChange={handleMovimientoChange}
           >
@@ -138,7 +138,7 @@ const Transporte = () => {
             ))}
           </select>
           {movSeleccionado && (
-            <p className="mt-1 text-xs text-blue-600 font-medium">
+            <p className="mt-1 text-xs text-primary-700 font-bold">
               Disponible para envío total: <strong>{movSeleccionado.cantidad_restante}</strong> unidades
             </p>
           )}
@@ -175,7 +175,7 @@ const Transporte = () => {
           <select
             name="cliente_final_id"
             required
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border bg-white"
             value={formData.cliente_final_id}
             onChange={handleChange}
           >
@@ -189,7 +189,7 @@ const Transporte = () => {
         <div className="pt-4 border-t">
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-150"
+            className="w-full bg-primary-500 hover:bg-primary-600 text-black font-bold py-2.5 px-4 rounded-md transition duration-150 shadow-sm"
           >
             Enviar a Transporte / Cliente Final
           </button>

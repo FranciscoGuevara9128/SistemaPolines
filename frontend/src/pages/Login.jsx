@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/api';
+import logo from '../assets/logo.svg';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ const Login = () => {
 
     try {
       const { data } = await loginUser({ email, password });
-      
+
       if (data.success) {
         // data format: { success, token, user: { role, entityId, entityName, ... } }
         login(data.user, data.token);
@@ -37,15 +38,16 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
-        <div>
-          <h2 className="mt-2 text-center text-3xl font-extrabold text-indigo-700 font-sans">
-            Sistema de Polines
+        <div className="flex flex-col items-center">
+          <img src={logo} alt="AL Soluciones Logo" className="h-32 w-32 mb-2" />
+          <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900 font-sans">
+            AL Soluciones
           </h2>
           <p className="mt-2 text-center text-sm text-gray-500">
             Acceso al Sistema
           </p>
         </div>
-        
+
         {error && (
           <div className="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
             <div className="flex">
@@ -75,7 +77,7 @@ const Login = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="ejemplo@correo.com"
               />
             </div>
@@ -91,7 +93,7 @@ const Login = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="••••••••"
               />
             </div>
@@ -101,7 +103,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white ${isSubmitting ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150`}
+              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-md ${isSubmitting ? 'bg-primary-300 text-gray-700' : 'bg-primary-500 hover:bg-primary-600 text-black'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition duration-150`}
             >
               {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
