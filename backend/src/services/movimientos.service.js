@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase.js';
 // ─────────────────────────────────────────────────────────────
 // REGISTRAR ENTREGA
 // ─────────────────────────────────────────────────────────────
-export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cantidad, estado_uso = 'ALMACENAMIENTO', costo_entrega = 0 }) => {
+export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cantidad, estado_uso = 'ALMACENAMIENTO', costo_entrega = 0, fecha_manual }) => {
   const { data: inv, error: invGetError } = await supabase
     .from('inventario')
     .select('*')
@@ -25,7 +25,7 @@ export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, colo
       tipo_movimiento: 'ENTREGA',
       estado_uso: estado_uso,
       costo_entrega: costo_entrega,
-      fecha_inicio: new Date().toISOString()
+      fecha_inicio: fecha_manual ? new Date(fecha_manual).toISOString() : new Date().toISOString()
     }])
     .select()
     .single();
@@ -50,7 +50,7 @@ export const registrarEntrega = async ({ cliente_directo_id, tipo_polin_id, colo
 // movimiento hijo, diferenciado por estado_uso='TRANSPORTE' y
 // movimiento_origen_id seteado.
 // ─────────────────────────────────────────────────────────────
-export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada }) => {
+export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, color_polin_id, cliente_final_id, cantidad_enviada, fecha_manual }) => {
   if (!cliente_final_id) throw new Error('cliente_final_id es obligatorio.');
   if (!cliente_directo_id || !tipo_polin_id || !color_polin_id) throw new Error('Debe especificar el origen completo.');
   if (!cantidad_enviada || cantidad_enviada <= 0) throw new Error('cantidad_enviada debe ser mayor a 0.');
@@ -76,7 +76,7 @@ export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, colo
     throw new Error(`Cantidad a enviar (${cantidad_restante_por_enviar}) supera la disponible en almacén (${totalDisponible}).`);
   }
 
-  const ahora = new Date().toISOString();
+  const ahora = fecha_manual ? new Date(fecha_manual).toISOString() : new Date().toISOString();
   const movimientos_hijos = [];
 
   for (const lote of lotes_disponibles) {
@@ -137,7 +137,7 @@ export const enviarTransporte = async ({ cliente_directo_id, tipo_polin_id, colo
 // - Si cantidad_liberar >= cantidad_restante (o no se especifica):
 //   liberación total, se cierra el movimiento con fecha_fin.
 // ─────────────────────────────────────────────────────────────
-export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar }) => {
+export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin_id, color_polin_id, cantidad_liberar, fecha_manual }) => {
   if (!estado_uso || !cliente_dueño_id || !tipo_polin_id || !color_polin_id) throw new Error('Debe especificar el grupo completo para liberar.');
   if (!cantidad_liberar || cantidad_liberar <= 0) throw new Error('La cantidad a liberar debe ser mayor a 0.');
 
@@ -169,7 +169,7 @@ export const liberarPolines = async ({ estado_uso, cliente_dueño_id, tipo_polin
     throw new Error(`Cantidad a liberar (${aLiberarTotal}) supera la disponible (${totalDisponible}).`);
   }
 
-  const ahora = new Date().toISOString();
+  const ahora = fecha_manual ? new Date(fecha_manual).toISOString() : new Date().toISOString();
   let cantidad_liberada_real = 0;
   let lotes_afectados = 0;
 
@@ -242,7 +242,7 @@ export const getRecepcionesPendientes = async () => {
   return data;
 };
 
-export const procesarRecepcion = async ({ recepcion_id, cantidad_buenos, cantidad_siniestrados }) => {
+export const procesarRecepcion = async ({ recepcion_id, cantidad_buenos, cantidad_siniestrados, fecha_manual }) => {
   if (!recepcion_id) throw new Error('Debe especificar IDs de recepcion.');
 
   const { data: rec, error: getErr } = await supabase
@@ -265,7 +265,7 @@ export const procesarRecepcion = async ({ recepcion_id, cantidad_buenos, cantida
       cantidad_buenos,
       cantidad_siniestrados,
       estado_recepcion: 'RECIBIDO',
-      fecha_recepcion: new Date().toISOString()
+      fecha_recepcion: fecha_manual ? new Date(fecha_manual).toISOString() : new Date().toISOString()
     })
     .eq('id', recepcion_id);
 

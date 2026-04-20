@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getRecepcionesPendientes, procesarRecepcion } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Recepcion = () => {
   const [recepciones, setRecepciones] = useState([]);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [formValues, setFormValues] = useState({});
+  const { user } = useAuth();
 
   const fetchPendientes = async () => {
     try {
@@ -17,7 +19,8 @@ const Recepcion = () => {
         data.data.forEach(rec => {
           initialForm[rec.id] = {
             cantidad_buenos: rec.cantidad_liberada,
-            cantidad_siniestrados: 0
+            cantidad_siniestrados: 0,
+            fecha_manual: ''
           };
         });
         setFormValues(initialForm);
@@ -32,12 +35,18 @@ const Recepcion = () => {
   }, []);
 
   const handleChange = (id, field, value) => {
-    const val = parseInt(value, 10) || 0;
     const rec = recepciones.find(r => r.id === id);
     if (!rec) return;
 
     setFormValues(prev => {
       const current = { ...prev[id] };
+      
+      if (field === 'fecha_manual') {
+        current[field] = value;
+        return { ...prev, [id]: current };
+      }
+
+      const val = parseInt(value, 10) || 0;
       current[field] = val;
       
       // Auto-balancear si es posible
@@ -65,7 +74,8 @@ const Recepcion = () => {
       const result = await procesarRecepcion({
         recepcion_id: id,
         cantidad_buenos: vals.cantidad_buenos,
-        cantidad_siniestrados: vals.cantidad_siniestrados
+        cantidad_siniestrados: vals.cantidad_siniestrados,
+        fecha_manual: vals.fecha_manual
       });
 
       if (result.data.success) {
@@ -143,6 +153,21 @@ const Recepcion = () => {
                       onChange={(e) => handleChange(rec.id, 'cantidad_siniestrados', e.target.value)}
                     />
                   </div>
+                  
+                  {user?.role === 'ADMIN' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha Manual
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border text-xs"
+                        value={formValues[rec.id]?.fecha_manual ?? ''}
+                        onChange={(e) => handleChange(rec.id, 'fecha_manual', e.target.value)}
+                      />
+                    </div>
+                  )}
+
                   <div>
                     <button
                       onClick={() => handleProcesar(rec.id)}

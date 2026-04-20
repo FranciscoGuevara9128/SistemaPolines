@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { registrarEntrega, getReferencias } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Entregas = () => {
   const [formData, setFormData] = useState({
@@ -8,8 +9,10 @@ const Entregas = () => {
     color_polin_id: '',
     cantidad: '',
     estado_uso: 'ALMACENAMIENTO',
-    costo_entrega: 0
+    costo_entrega: 0,
+    fecha_manual: ''
   });
+  const { user } = useAuth();
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [referencias, setReferencias] = useState({
     clientes_directos: [],
@@ -44,7 +47,7 @@ const Entregas = () => {
         costo_entrega: formData.costo_entrega ? parseFloat(formData.costo_entrega) : 0
       });
       setMensaje({ tipo: 'success', texto: `Entrega registrada correctamente en modalidad ${formData.estado_uso}` });
-      setFormData({ cliente_directo_id: '', tipo_polin_id: '', color_polin_id: '', cantidad: '', estado_uso: 'ALMACENAMIENTO', costo_entrega: 0 });
+      setFormData({ cliente_directo_id: '', tipo_polin_id: '', color_polin_id: '', cantidad: '', estado_uso: 'ALMACENAMIENTO', costo_entrega: 0, fecha_manual: '' });
     } catch (err) {
       setMensaje({ tipo: 'error', texto: 'Error al registrar entrega. ' + (err.response?.data?.error || err.message) });
     }
@@ -154,6 +157,22 @@ const Entregas = () => {
             />
           </div>
         </div>
+
+        {user?.role === 'ADMIN' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha Manual (Opcional - Operación a destiempo)
+            </label>
+            <input
+              type="datetime-local"
+              name="fecha_manual"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
+              value={formData.fecha_manual}
+              onChange={handleChange}
+            />
+            <p className="mt-1 text-xs text-gray-500">Si se deja vacío, se usará la fecha y hora actual del servidor.</p>
+          </div>
+        )}
         
         <div className="pt-4 border-t">
           <button

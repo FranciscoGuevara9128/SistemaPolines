@@ -10,6 +10,12 @@ export const registrarEntrega = async (req, res) => {
     }
 
     const data = req.body;
+    
+    // Solo permitir fecha_manual si es ADMIN
+    if (userRole !== 'ADMIN') {
+      delete data.fecha_manual;
+    }
+
     const result = await MovimientosService.registrarEntrega(data);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
@@ -32,7 +38,8 @@ export const enviarTransporte = async (req, res) => {
       tipo_polin_id,
       color_polin_id,
       cliente_final_id,
-      cantidad_enviada: parseInt(cantidad_enviada, 10)
+      cantidad_enviada: parseInt(cantidad_enviada, 10),
+      fecha_manual: userRole === 'ADMIN' ? req.body.fecha_manual : null
     });
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -61,7 +68,8 @@ export const liberarPolines = async (req, res) => {
       cliente_dueño_id,
       tipo_polin_id,
       color_polin_id,
-      cantidad_liberar: cantidad_liberar ? parseInt(cantidad_liberar, 10) : null
+      cantidad_liberar: cantidad_liberar ? parseInt(cantidad_liberar, 10) : null,
+      fecha_manual: userRole === 'ADMIN' ? req.body.fecha_manual : null
     });
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -102,6 +110,12 @@ export const procesarRecepcion = async (req, res) => {
     }
 
     const data = req.body;
+    
+    // Solo permitir fecha_manual si es ADMIN
+    if (userRole !== 'ADMIN') {
+      delete data.fecha_manual;
+    }
+
     const result = await MovimientosService.procesarRecepcion(data);
     res.status(200).json({ success: true, data: result });
   } catch (error) {

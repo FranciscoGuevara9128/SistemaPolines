@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { liberarPolines, getReferencias } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const BADGE = {
   ALMACENAMIENTO: 'bg-blue-100 text-blue-800',
@@ -8,7 +9,8 @@ const BADGE = {
 };
 
 const Liberaciones = () => {
-  const [formData, setFormData] = useState({ grupo_movimiento: '', cantidad_liberar: '' });
+  const [formData, setFormData] = useState({ grupo_movimiento: '', cantidad_liberar: '', fecha_manual: '' });
+  const { user } = useAuth();
   const [movSeleccionado, setMovSeleccionado] = useState(null);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [referencias, setReferencias] = useState({ movimientos_activos: [] });
@@ -98,7 +100,7 @@ const Liberaciones = () => {
         texto: message
       });
 
-      setFormData({ grupo_movimiento: '', cantidad_liberar: '' });
+      setFormData({ grupo_movimiento: '', cantidad_liberar: '', fecha_manual: '' });
       setMovSeleccionado(null);
       
       // Update inventory directly by refetching due to complexities
@@ -179,6 +181,22 @@ const Liberaciones = () => {
             </p>
           )}
         </div>
+
+        {user?.role === 'ADMIN' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha Manual (Opcional - Operación a destiempo)
+            </label>
+            <input
+              type="datetime-local"
+              name="fecha_manual"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
+              value={formData.fecha_manual}
+              onChange={handleChange}
+            />
+            <p className="mt-1 text-xs text-gray-500">Si se deja vacío, se usará la fecha y hora actual del servidor.</p>
+          </div>
+        )}
 
         <div className="pt-4 border-t">
           <button

@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { enviarTransporte, getReferencias } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Transporte = () => {
   const [formData, setFormData] = useState({
     grupo_origen: '',
     cliente_final_id: '',
-    cantidad_enviada: ''
+    cantidad_enviada: '',
+    fecha_manual: ''
   });
+  const { user } = useAuth();
   const [movSeleccionado, setMovSeleccionado] = useState(null);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [referencias, setReferencias] = useState({
@@ -96,7 +99,7 @@ const Transporte = () => {
         : `Envío parcial registrado. Quedan ${restante_en_origen} unidades en almacenamiento para este grupo.`;
 
       setMensaje({ tipo: 'success', texto: msg });
-      setFormData({ grupo_origen: '', cliente_final_id: '', cantidad_enviada: '' });
+      setFormData({ grupo_origen: '', cliente_final_id: '', cantidad_enviada: '', fecha_manual: '' });
       setMovSeleccionado(null);
 
       // Actualizar referencias completas desde el backend
@@ -185,6 +188,22 @@ const Transporte = () => {
             ))}
           </select>
         </div>
+
+        {user?.role === 'ADMIN' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha Manual (Opcional - Operación a destiempo)
+            </label>
+            <input
+              type="datetime-local"
+              name="fecha_manual"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-2 border"
+              value={formData.fecha_manual}
+              onChange={handleChange}
+            />
+            <p className="mt-1 text-xs text-gray-500">Si se deja vacío, se usará la fecha y hora actual del servidor.</p>
+          </div>
+        )}
 
         <div className="pt-4 border-t">
           <button
